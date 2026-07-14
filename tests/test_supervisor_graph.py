@@ -38,7 +38,7 @@ def settings() -> AppSettings:
     )
 
 
-def test_graph_calls_foundry_and_returns_answer(settings):
+def test_general_question_calls_foundry_and_returns_answer(settings):
     client = FakeClient("Resposta do Foundry.")
     graph = build_supervisor_graph(
         settings=settings,
@@ -48,15 +48,37 @@ def test_graph_calls_foundry_and_returns_answer(settings):
     result = graph.invoke(
         {
             "user_input": "Explique o Foundry.",
+            "intent": "general",
             "answer": "",
         }
     )
 
+    assert result["intent"] == "general"
     assert result["answer"] == "Resposta do Foundry."
     assert client.responses.calls[0]["model"] == "test-deployment"
     assert client.responses.calls[0]["instructions"] == (
         "You are a test assistant."
     )
+
+
+def test_time_question_uses_local_tool_without_calling_foundry(settings):
+    client = FakeClient("unused")
+    graph = build_supervisor_graph(
+        settings=settings,
+        client_factory=lambda: client,
+    )
+
+    result = graph.invoke(
+        {
+            "user_input": "Que horas são em UTC?",
+            "intent": "general",
+            "answer": "",
+        }
+    )
+
+    assert result["intent"] == "time"
+    assert "UTC" in result["answer"]
+    assert client.responses.calls == []
 
 
 def test_graph_rejects_empty_input(settings):
@@ -69,6 +91,7 @@ def test_graph_rejects_empty_input(settings):
         graph.invoke(
             {
                 "user_input": "   ",
+                "intent": "general",
                 "answer": "",
             }
         )
@@ -84,6 +107,7 @@ def test_graph_rejects_empty_model_response(settings):
         graph.invoke(
             {
                 "user_input": "Hello",
+                "intent": "general",
                 "answer": "",
             }
         )

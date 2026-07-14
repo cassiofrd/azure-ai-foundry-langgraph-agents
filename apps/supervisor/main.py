@@ -28,9 +28,12 @@ def main() -> None:
         result = graph.invoke(
             {
                 "user_input": user_input,
+                "intent": "general",
                 "answer": "",
             }
         )
+
+        print(f"Route: {result['intent']}")
         print(f"Agent: {result['answer']}\n")
 
 
