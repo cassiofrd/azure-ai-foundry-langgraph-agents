@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-from typing import Callable, TypedDict
+from typing import Callable
 
 from langgraph.graph import END, START, StateGraph
 
 from shared.foundry_client import ResponsesClient
 from shared.settings import AppSettings
-
-
-class SupervisorState(TypedDict):
-    user_input: str
-    answer: str
+from shared.state import SupervisorState
 
 
 def build_supervisor_graph(
@@ -20,10 +16,12 @@ def build_supervisor_graph(
 ):
     def call_foundry_model(state: SupervisorState) -> SupervisorState:
         user_input = state["user_input"].strip()
+
         if not user_input:
             raise ValueError("user_input cannot be empty.")
 
         client = client_factory()
+
         response = client.responses.create(
             model=settings.foundry_model_deployment,
             instructions=settings.system_prompt,
@@ -32,6 +30,7 @@ def build_supervisor_graph(
         )
 
         answer = (response.output_text or "").strip()
+
         if not answer:
             raise RuntimeError("Foundry returned an empty response.")
 
@@ -40,8 +39,9 @@ def build_supervisor_graph(
             "answer": answer,
         }
 
-    builder = StateGraph(SupervisorState)
-    builder.add_node("call_foundry_model", call_foundry_model)
-    builder.add_edge(START, "call_foundry_model")
-    builder.add_edge("call_foundry_model", END)
-    return builder.compile()
+    graph = StateGraph(SupervisorState)
+    graph.add_node("call_foundry_model", call_foundry_model)
+    graph.add_edge(START, "call_foundry_model")
+    graph.add_edge("call_foundry_model", END)
+
+    return graph.compile()
