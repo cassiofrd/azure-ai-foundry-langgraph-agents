@@ -6,6 +6,7 @@ from typing import Callable
 from langgraph.graph import END, START, StateGraph
 
 from shared.foundry_client import ResponsesClient
+from shared.foundry_service import FoundryService
 from shared.settings import AppSettings
 from shared.state import SupervisorState
 from shared.tools import TOOL_REGISTRY, TOOLS
@@ -16,6 +17,11 @@ def build_supervisor_graph(
     settings: AppSettings,
     client_factory: Callable[[], ResponsesClient],
 ):
+    foundry_service = FoundryService(
+        settings=settings,
+        client_factory=client_factory,
+    )
+
     def call_foundry_with_tools(
         state: SupervisorState,
     ) -> SupervisorState:
@@ -24,79 +30,63 @@ def build_supervisor_graph(
         if not user_input:
             raise ValueError("user_input cannot be empty.")
 
-        client = client_factory()
-
-        response = client.responses.create(
-            model=settings.foundry_model_deployment,
-            instructions=settings.system_prompt,
-            input=user_input,
+        response = foundry_service.ask(
+            user_input=user_input,
             tools=TOOLS,
-            max_output_tokens=settings.model_max_output_tokens,
         )
 
-        function_calls = [
-            item
-            for item in response.output
-            if getattr(item, "type", None) == "function_call"
-        ]
-
-        if not function_calls:
-            answer = (response.output_text or "").strip()
-
-            if not answer:
+        if not response.tool_calls:
+            if not response.output_text:
                 raise RuntimeError("Foundry returned an empty response.")
 
             return {
                 "user_input": user_input,
                 "intent": "general",
-                "answer": answer,
+                "answer": response.output_text,
             }
 
         tool_outputs: list[dict[str, str]] = []
         executed_tool_names: list[str] = []
 
-        for function_call in function_calls:
-            tool_name = function_call.name
-            tool = TOOL_REGISTRY.get(tool_name)
+        for tool_call in response.tool_calls:
+            tool = TOOL_REGISTRY.get(tool_call.name)
 
             if tool is None:
                 raise RuntimeError(
-                    f"Foundry requested an unknown tool: {tool_name}."
+                    f"Foundry requested an unknown tool: {tool_call.name}."
                 )
 
             try:
-                arguments = json.loads(function_call.arguments or "{}")
+                arguments = json.loads(tool_call.arguments)
             except json.JSONDecodeError as exc:
                 raise RuntimeError(
-                    f"Foundry returned invalid arguments for {tool_name}."
+                    "Foundry returned invalid arguments for "
+                    f"{tool_call.name}."
                 ) from exc
 
             if not isinstance(arguments, dict):
                 raise RuntimeError(
-                    f"Tool arguments for {tool_name} must be a JSON object."
+                    f"Tool arguments for {tool_call.name} "
+                    "must be a JSON object."
                 )
 
             tool_result = tool(**arguments)
-            executed_tool_names.append(tool_name)
+            executed_tool_names.append(tool_call.name)
 
             tool_outputs.append(
                 {
                     "type": "function_call_output",
-                    "call_id": function_call.call_id,
+                    "call_id": tool_call.call_id,
                     "output": str(tool_result),
                 }
             )
 
-        final_response = client.responses.create(
-            model=settings.foundry_model_deployment,
-            previous_response_id=response.id,
-            input=tool_outputs,
-            max_output_tokens=settings.model_max_output_tokens,
+        final_response = foundry_service.continue_after_tools(
+            previous_response_id=response.response_id,
+            tool_outputs=tool_outputs,
         )
 
-        answer = (final_response.output_text or "").strip()
-
-        if not answer:
+        if not final_response.output_text:
             raise RuntimeError(
                 "Foundry returned an empty response after tool execution."
             )
@@ -110,7 +100,7 @@ def build_supervisor_graph(
         return {
             "user_input": user_input,
             "intent": intent,
-            "answer": answer,
+            "answer": final_response.output_text,
         }
 
     graph = StateGraph(SupervisorState)

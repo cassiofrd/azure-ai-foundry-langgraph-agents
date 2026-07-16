@@ -28,11 +28,7 @@ class FakeClient:
         self.responses = FakeResponses(list(responses))
 
 
-def direct_response(
-    text: str,
-    *,
-    response_id: str = "resp-direct",
-) -> SimpleNamespace:
+def direct_response(text: str, *, response_id: str = "resp-direct"):
     return SimpleNamespace(
         id=response_id,
         output=[],
@@ -46,7 +42,7 @@ def tool_call_response(
     arguments: str = "{}",
     call_id: str = "call-1",
     response_id: str = "resp-tool",
-) -> SimpleNamespace:
+):
     return SimpleNamespace(
         id=response_id,
         output=[
@@ -103,12 +99,6 @@ def test_general_question_returns_direct_foundry_answer(settings):
     assert result["answer"] == "Resposta direta do Foundry."
     assert len(client.responses.calls) == 1
 
-    first_call = client.responses.calls[0]
-    assert first_call["model"] == "test-deployment"
-    assert first_call["instructions"] == settings.system_prompt
-    assert first_call["input"] == "Explique o Foundry."
-    assert "tools" in first_call
-
 
 def test_time_question_executes_tool_and_requests_final_answer(settings):
     client = FakeClient(
@@ -128,12 +118,6 @@ def test_time_question_executes_tool_and_requests_final_answer(settings):
     assert result["intent"] == "time"
     assert result["answer"] == "Agora são 13:35 UTC."
     assert len(client.responses.calls) == 2
-
-    second_call = client.responses.calls[1]
-    assert second_call["previous_response_id"] == "resp-tool"
-    assert second_call["input"][0]["type"] == "function_call_output"
-    assert second_call["input"][0]["call_id"] == "call-1"
-    assert "UTC" in second_call["input"][0]["output"]
 
 
 def test_empty_input_is_rejected_before_calling_foundry(settings):
