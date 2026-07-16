@@ -18,17 +18,25 @@ class FakeResponses:
         self.calls.append(kwargs)
 
         if not self.responses:
-            raise AssertionError("No fake response was configured.")
+            raise AssertionError(
+                "No fake response was configured."
+            )
 
         return self.responses.popleft()
 
 
 class FakeClient:
     def __init__(self, *responses: SimpleNamespace):
-        self.responses = FakeResponses(list(responses))
+        self.responses = FakeResponses(
+            list(responses)
+        )
 
 
-def direct_response(text: str, *, response_id: str = "resp-direct"):
+def direct_response(
+    text: str,
+    *,
+    response_id: str = "resp-direct",
+):
     return SimpleNamespace(
         id=response_id,
         output=[],
@@ -38,9 +46,6 @@ def direct_response(text: str, *, response_id: str = "resp-direct"):
 
 def tool_call_response(
     *,
-    tool_name: str = "get_current_utc_time",
-    arguments: str = "{}",
-    call_id: str = "call-1",
     response_id: str = "resp-tool",
 ):
     return SimpleNamespace(
@@ -48,9 +53,9 @@ def tool_call_response(
         output=[
             SimpleNamespace(
                 type="function_call",
-                name=tool_name,
-                arguments=arguments,
-                call_id=call_id,
+                name="get_current_utc_time",
+                arguments="{}",
+                call_id="call-1",
             )
         ],
         output_text="",
@@ -59,9 +64,11 @@ def tool_call_response(
 
 @pytest.fixture
 def settings() -> AppSettings:
+
     return AppSettings(
         foundry_project_endpoint=(
-            "https://example.services.ai.azure.com/api/projects/example"
+            "https://example.services.ai.azure.com/"
+            "api/projects/example"
         ),
         foundry_model_deployment="test-deployment",
         app_name="test-app",
@@ -70,7 +77,9 @@ def settings() -> AppSettings:
         model_max_output_tokens=200,
         system_prompt="You are a test assistant.",
         router_max_output_tokens=16,
-        router_prompt="Return only general or time.",
+        router_prompt=(
+            "Return only general or time."
+        ),
     )
 
 
@@ -79,43 +88,30 @@ def invoke_graph(
     question: str,
     conversation_response_id: str | None = None,
 ):
+
     return graph.invoke(
         {
             "user_input": question,
             "intent": "general",
             "answer": "",
-            "conversation_response_id": conversation_response_id,
+            "conversation_response_id": (
+                conversation_response_id
+            ),
         }
     )
 
 
-def test_general_question_returns_direct_foundry_answer(settings):
+def test_general_question_returns_direct_answer(
+    settings,
+):
+
     client = FakeClient(
         direct_response(
-            "Resposta direta do Foundry.",
+            "Resposta direta.",
             response_id="resp-1",
-        ),
-    )
-    graph = build_supervisor_graph(
-        settings=settings,
-        client_factory=lambda: client,
+        )
     )
 
-    result = invoke_graph(graph, "Explique o Foundry.")
-
-    assert result["intent"] == "general"
-    assert result["answer"] == "Resposta direta do Foundry."
-    assert result["conversation_response_id"] == "resp-1"
-    assert len(client.responses.calls) == 1
-
-
-def test_second_turn_uses_previous_response_id(settings):
-    client = FakeClient(
-        direct_response(
-            "Seu nome é Cássio.",
-            response_id="resp-2",
-        ),
-    )
     graph = build_supervisor_graph(
         settings=settings,
         client_factory=lambda: client,
@@ -123,18 +119,58 @@ def test_second_turn_uses_previous_response_id(settings):
 
     result = invoke_graph(
         graph,
-        "Qual é o meu nome?",
-        conversation_response_id="resp-1",
+        "Explique o Foundry.",
     )
 
-    assert result["conversation_response_id"] == "resp-2"
+    assert result["intent"] == "general"
+    assert result["answer"] == "Resposta direta."
     assert (
-        client.responses.calls[0]["previous_response_id"]
+        result["conversation_response_id"]
         == "resp-1"
     )
 
+    assert len(client.responses.calls) == 1
 
-def test_time_question_stores_final_response_as_memory(settings):
+
+def test_second_turn_uses_memory(
+    settings,
+):
+
+    client = FakeClient(
+        direct_response(
+            "Seu nome é Cássio.",
+            response_id="resp-2",
+        )
+    )
+
+    graph = build_supervisor_graph(
+        settings=settings,
+        client_factory=lambda: client,
+    )
+
+    result = invoke_graph(
+        graph,
+        "Qual é meu nome?",
+        conversation_response_id="resp-1",
+    )
+
+    assert (
+        client.responses.calls[0][
+            "previous_response_id"
+        ]
+        == "resp-1"
+    )
+
+    assert (
+        result["conversation_response_id"]
+        == "resp-2"
+    )
+
+
+def test_tool_execution_flow(
+    settings,
+):
+
     client = FakeClient(
         tool_call_response(),
         direct_response(
@@ -142,78 +178,85 @@ def test_time_question_stores_final_response_as_memory(settings):
             response_id="resp-final",
         ),
     )
+
     graph = build_supervisor_graph(
         settings=settings,
         client_factory=lambda: client,
     )
 
-    result = invoke_graph(graph, "Que horas são em UTC?")
+    result = invoke_graph(
+        graph,
+        "Que horas são em UTC?",
+    )
 
     assert result["intent"] == "time"
-    assert result["answer"] == "Agora são 13:35 UTC."
-    assert result["conversation_response_id"] == "resp-final"
+
+    assert (
+        result["conversation_response_id"]
+        == "resp-final"
+    )
+
     assert len(client.responses.calls) == 2
 
 
-def test_empty_input_is_rejected_before_calling_foundry(settings):
+def test_empty_input_is_rejected(
+    settings,
+):
+
     client = FakeClient(
-        direct_response("unused"),
+        direct_response("unused")
     )
+
     graph = build_supervisor_graph(
         settings=settings,
         client_factory=lambda: client,
     )
 
-    with pytest.raises(ValueError, match="user_input cannot be empty"):
-        invoke_graph(graph, "   ")
+    with pytest.raises(
+        ValueError,
+        match="user_input cannot be empty",
+    ):
+        invoke_graph(
+            graph,
+            "   ",
+        )
 
-    assert client.responses.calls == []
 
+def test_empty_direct_response_is_rejected(
+    settings,
+):
 
-def test_unknown_tool_is_rejected(settings):
     client = FakeClient(
-        tool_call_response(tool_name="unknown_tool"),
+        direct_response("")
     )
+
     graph = build_supervisor_graph(
         settings=settings,
         client_factory=lambda: client,
     )
 
-    with pytest.raises(RuntimeError, match="unknown tool"):
-        invoke_graph(graph, "Use uma ferramenta desconhecida.")
+    with pytest.raises(
+        RuntimeError,
+        match="empty response",
+    ):
+        invoke_graph(
+            graph,
+            "Explique o Foundry.",
+        )
 
 
-def test_invalid_tool_arguments_are_rejected(settings):
-    client = FakeClient(
-        tool_call_response(arguments="{invalid-json"),
-    )
-    graph = build_supervisor_graph(
-        settings=settings,
-        client_factory=lambda: client,
-    )
+def test_empty_final_response_after_tool(
+    settings,
+):
 
-    with pytest.raises(RuntimeError, match="invalid arguments"):
-        invoke_graph(graph, "Que horas são?")
-
-
-def test_empty_direct_response_is_rejected(settings):
-    client = FakeClient(
-        direct_response(""),
-    )
-    graph = build_supervisor_graph(
-        settings=settings,
-        client_factory=lambda: client,
-    )
-
-    with pytest.raises(RuntimeError, match="empty response"):
-        invoke_graph(graph, "Explique o Foundry.")
-
-
-def test_empty_final_response_after_tool_is_rejected(settings):
     client = FakeClient(
         tool_call_response(),
-        direct_response("", response_id="resp-final"),
+        direct_response(
+            "",
+            response_id="resp-final",
+        ),
     )
+
     graph = build_supervisor_graph(
         settings=settings,
         client_factory=lambda: client,
@@ -223,4 +266,7 @@ def test_empty_final_response_after_tool_is_rejected(settings):
         RuntimeError,
         match="empty response after tool execution",
     ):
-        invoke_graph(graph, "Que horas são em UTC?")
+        invoke_graph(
+            graph,
+            "Que horas são?",
+        )

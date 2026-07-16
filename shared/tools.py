@@ -1,18 +1,22 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Any, Callable
+
+
+ToolFunction = Callable[..., Any]
 
 
 def get_current_utc_time() -> str:
     current_time = datetime.now(timezone.utc)
 
     return (
-        f"The current UTC time is "
+        "The current UTC time is "
         f"{current_time.strftime('%Y-%m-%d %H:%M:%S')} UTC."
     )
 
 
-TOOLS = [
+TOOLS: list[dict[str, Any]] = [
     {
         "type": "function",
         "name": "get_current_utc_time",
@@ -21,10 +25,12 @@ TOOLS = [
             "type": "object",
             "properties": {},
             "required": [],
+            "additionalProperties": False,
         },
     }
 ]
 
-TOOL_REGISTRY = {
+
+TOOL_REGISTRY: dict[str, ToolFunction] = {
     "get_current_utc_time": get_current_utc_time,
 }
