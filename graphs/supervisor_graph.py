@@ -33,6 +33,7 @@ def build_supervisor_graph(
         response = foundry_service.ask(
             user_input=user_input,
             tools=TOOLS,
+            previous_response_id=state.get("conversation_response_id"),
         )
 
         if not response.tool_calls:
@@ -43,6 +44,7 @@ def build_supervisor_graph(
                 "user_input": user_input,
                 "intent": "general",
                 "answer": response.output_text,
+                "conversation_response_id": response.response_id,
             }
 
         tool_outputs: list[dict[str, str]] = []
@@ -101,6 +103,7 @@ def build_supervisor_graph(
             "user_input": user_input,
             "intent": intent,
             "answer": final_response.output_text,
+            "conversation_response_id": final_response.response_id,
         }
 
     graph = StateGraph(SupervisorState)

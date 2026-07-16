@@ -36,6 +36,7 @@ class FoundryService:
         *,
         user_input: str,
         tools: list[dict[str, Any]] | None = None,
+        previous_response_id: str | None = None,
     ) -> FoundryResponse:
         client = self._client_factory()
 
@@ -48,6 +49,9 @@ class FoundryService:
 
         if tools:
             request["tools"] = tools
+
+        if previous_response_id:
+            request["previous_response_id"] = previous_response_id
 
         response = client.responses.create(**request)
         return self._normalize_response(response)

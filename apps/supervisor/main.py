@@ -12,16 +12,26 @@ def main() -> None:
         client_factory=lambda: get_openai_client(settings),
     )
 
+    conversation_response_id: str | None = None
+
     print(
         f"{settings.app_name} v{settings.app_version} "
         f"({settings.app_environment})"
     )
-    print("Type 'exit' to finish.\n")
+    print("Type 'exit' to finish.")
+    print("Type 'reset' to clear the current conversation memory.\n")
 
     while True:
         user_input = input("You: ").strip()
+
         if user_input.lower() in {"exit", "quit"}:
             break
+
+        if user_input.lower() == "reset":
+            conversation_response_id = None
+            print("Conversation memory cleared.\n")
+            continue
+
         if not user_input:
             continue
 
@@ -30,8 +40,11 @@ def main() -> None:
                 "user_input": user_input,
                 "intent": "general",
                 "answer": "",
+                "conversation_response_id": conversation_response_id,
             }
         )
+
+        conversation_response_id = result["conversation_response_id"]
 
         print(f"Route: {result['intent']}")
         print(f"Agent: {result['answer']}\n")

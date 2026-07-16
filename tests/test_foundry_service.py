@@ -62,6 +62,49 @@ def test_ask_normalizes_direct_response():
     assert client.responses.calls[0]["tools"][0]["name"] == "example"
 
 
+def test_ask_passes_previous_response_id_for_memory():
+    client = FakeClient(
+        SimpleNamespace(
+            id="resp-2",
+            output=[],
+            output_text="Seu nome é Cássio.",
+        )
+    )
+    service = FoundryService(
+        settings=settings(),
+        client_factory=lambda: client,
+    )
+
+    response = service.ask(
+        user_input="Qual é o meu nome?",
+        previous_response_id="resp-1",
+    )
+
+    assert response.response_id == "resp-2"
+    assert (
+        client.responses.calls[0]["previous_response_id"]
+        == "resp-1"
+    )
+
+
+def test_ask_omits_previous_response_id_on_first_turn():
+    client = FakeClient(
+        SimpleNamespace(
+            id="resp-1",
+            output=[],
+            output_text="Olá.",
+        )
+    )
+    service = FoundryService(
+        settings=settings(),
+        client_factory=lambda: client,
+    )
+
+    service.ask(user_input="Olá")
+
+    assert "previous_response_id" not in client.responses.calls[0]
+
+
 def test_ask_normalizes_function_call():
     client = FakeClient(
         SimpleNamespace(

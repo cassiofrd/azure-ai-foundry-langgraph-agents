@@ -74,19 +74,27 @@ def settings() -> AppSettings:
     )
 
 
-def invoke_graph(graph, question: str):
+def invoke_graph(
+    graph,
+    question: str,
+    conversation_response_id: str | None = None,
+):
     return graph.invoke(
         {
             "user_input": question,
             "intent": "general",
             "answer": "",
+            "conversation_response_id": conversation_response_id,
         }
     )
 
 
 def test_general_question_returns_direct_foundry_answer(settings):
     client = FakeClient(
-        direct_response("Resposta direta do Foundry."),
+        direct_response(
+            "Resposta direta do Foundry.",
+            response_id="resp-1",
+        ),
     )
     graph = build_supervisor_graph(
         settings=settings,
@@ -97,10 +105,36 @@ def test_general_question_returns_direct_foundry_answer(settings):
 
     assert result["intent"] == "general"
     assert result["answer"] == "Resposta direta do Foundry."
+    assert result["conversation_response_id"] == "resp-1"
     assert len(client.responses.calls) == 1
 
 
-def test_time_question_executes_tool_and_requests_final_answer(settings):
+def test_second_turn_uses_previous_response_id(settings):
+    client = FakeClient(
+        direct_response(
+            "Seu nome é Cássio.",
+            response_id="resp-2",
+        ),
+    )
+    graph = build_supervisor_graph(
+        settings=settings,
+        client_factory=lambda: client,
+    )
+
+    result = invoke_graph(
+        graph,
+        "Qual é o meu nome?",
+        conversation_response_id="resp-1",
+    )
+
+    assert result["conversation_response_id"] == "resp-2"
+    assert (
+        client.responses.calls[0]["previous_response_id"]
+        == "resp-1"
+    )
+
+
+def test_time_question_stores_final_response_as_memory(settings):
     client = FakeClient(
         tool_call_response(),
         direct_response(
@@ -117,6 +151,7 @@ def test_time_question_executes_tool_and_requests_final_answer(settings):
 
     assert result["intent"] == "time"
     assert result["answer"] == "Agora são 13:35 UTC."
+    assert result["conversation_response_id"] == "resp-final"
     assert len(client.responses.calls) == 2
 
 
