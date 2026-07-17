@@ -46,18 +46,32 @@ def search_documents(
     )
 
     if not documents:
-        return (
-            "No relevant documents were found."
+        return json.dumps(
+            {
+                "query": query,
+                "count": 0,
+                "documents": [],
+                "message": (
+                    "No relevant documents were found."
+                ),
+            },
+            indent=2,
+            ensure_ascii=False,
         )
 
-    payload = []
+    payload = {
+        "query": query,
+        "count": len(documents),
+        "documents": [],
+    }
 
     for document in documents:
-        payload.append(
+        payload["documents"].append(
             {
                 "title": document.title,
                 "content": document.content,
                 "agent": document.agent,
+                "doc_type": document.doc_type,
                 "entity_type": document.entity_type,
                 "entity_id": document.entity_id,
                 "source": document.source,
@@ -90,9 +104,13 @@ TOOLS: list[dict[str, Any]] = [
         "type": "function",
         "name": "search_documents",
         "description": (
-            "Searches the enterprise knowledge base "
-            "for inventory, supplier, procurement "
-            "and logistics information."
+            "Searches the enterprise knowledge base for "
+            "documents related to inventory, logistics, "
+            "suppliers, procurement, products, policies, "
+            "manuals and internal business information. "
+            "Use this tool whenever the user's question "
+            "depends on enterprise knowledge instead of "
+            "the model's general knowledge."
         ),
         "parameters": {
             "type": "object",
@@ -100,7 +118,12 @@ TOOLS: list[dict[str, Any]] = [
                 "query": {
                     "type": "string",
                     "description": (
-                        "Natural language search query."
+                        "A natural language search query "
+                        "describing the information to "
+                        "retrieve from the enterprise "
+                        "knowledge base. Whenever possible, "
+                        "reuse the user's request without "
+                        "rewriting it."
                     ),
                 }
             },

@@ -51,6 +51,8 @@ class SearchService:
         "source",
     ]
 
+    _MAX_CONTENT_LENGTH = 1000
+
     def __init__(
         self,
         *,
@@ -89,6 +91,7 @@ class SearchService:
         self,
         query: str,
     ) -> list[SearchDocument]:
+
         normalized_query = query.strip()
 
         if not normalized_query:
@@ -102,18 +105,64 @@ class SearchService:
             self._admin_key,
         )
 
-        results = client.search(
-            search_text=normalized_query,
-            top=self._top_k,
-            select=self._SELECT_FIELDS,
-        )
+        search_kwargs = {
+            "search_text": normalized_query,
+            "top": self._top_k,
+            "select": self._SELECT_FIELDS,
+        }
 
-        return [
+        results = client.search(**search_kwargs)
+
+        documents = [
             self._normalize_document(document)
             for document in results
         ]
 
+        documents = self._remove_duplicates(
+            documents
+        )
+
+        documents = self._remove_empty_documents(
+            documents
+        )
+
+        documents.sort(
+            key=lambda document: (
+                document.score is None,
+                -(document.score or 0.0),
+            )
+        )
+
+        return documents
+
+    def _remove_duplicates(
+        self,
+        documents: list[SearchDocument],
+    ) -> list[SearchDocument]:
+
+        unique: dict[str, SearchDocument] = {}
+
+        for document in documents:
+            unique.setdefault(
+                document.document_id,
+                document,
+            )
+
+        return list(unique.values())
+
+    def _remove_empty_documents(
+        self,
+        documents: list[SearchDocument],
+    ) -> list[SearchDocument]:
+
+        return [
+            document
+            for document in documents
+            if document.content.strip()
+        ]
+
     def _validate_configuration(self) -> None:
+
         if not self._endpoint:
             raise ValueError(
                 "AZURE_SEARCH_ENDPOINT is required to use "
@@ -143,16 +192,19 @@ class SearchService:
         index_name: str,
         admin_key: str,
     ) -> SearchClient:
+
         return SearchClient(
             endpoint=endpoint,
             index_name=index_name,
             credential=AzureKeyCredential(admin_key),
         )
 
-    @staticmethod
+    @classmethod
     def _normalize_document(
+        cls,
         document: dict[str, Any],
     ) -> SearchDocument:
+
         raw_score = document.get("@search.score")
 
         score = (
@@ -161,16 +213,34 @@ class SearchService:
             else None
         )
 
+        content = str(
+            document.get("content", "")
+        )
+
+        if len(content) > cls._MAX_CONTENT_LENGTH:
+            content = (
+                content[
+                    : cls._MAX_CONTENT_LENGTH
+                ].rstrip()
+                + "..."
+            )
+
         return SearchDocument(
             document_id=str(document.get("id", "")),
             title=str(document.get("title", "")),
-            content=str(document.get("content", "")),
+            content=content,
             agent=str(document.get("agent", "")),
-            doc_type=str(document.get("doc_type", "")),
+            doc_type=str(
+                document.get("doc_type", "")
+            ),
             entity_type=str(
                 document.get("entity_type", "")
             ),
-            entity_id=str(document.get("entity_id", "")),
-            source=str(document.get("source", "")),
+            entity_id=str(
+                document.get("entity_id", "")
+            ),
+            source=str(
+                document.get("source", "")
+            ),
             score=score,
         )
