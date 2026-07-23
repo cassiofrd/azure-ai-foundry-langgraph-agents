@@ -13,11 +13,15 @@ load_dotenv()
 class AppSettings:
     foundry_project_endpoint: str
     foundry_model_deployment: str
+    foundry_embedding_deployment: str
+
     app_name: str
     app_environment: str
     app_version: str
+
     model_max_output_tokens: int
     system_prompt: str
+
     router_max_output_tokens: int
     router_prompt: str
 
@@ -68,6 +72,9 @@ def load_settings() -> AppSettings:
         ),
         foundry_model_deployment=_required(
             "FOUNDRY_MODEL_DEPLOYMENT"
+        ),
+        foundry_embedding_deployment=_required(
+            "FOUNDRY_EMBEDDING_DEPLOYMENT"
         ),
         app_name=os.getenv(
             "APP_NAME",

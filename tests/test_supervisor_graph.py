@@ -71,6 +71,7 @@ def settings() -> AppSettings:
             "api/projects/example"
         ),
         foundry_model_deployment="test-deployment",
+        foundry_embedding_deployment="embedding-test-deployment",
         app_name="test-app",
         app_environment="test",
         app_version="0.1.0",

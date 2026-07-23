@@ -28,6 +28,7 @@ def settings() -> AppSettings:
             "https://example.services.ai.azure.com/api/projects/example"
         ),
         foundry_model_deployment="test-deployment",
+        foundry_embedding_deployment="embedding-test-deployment",
         app_name="test-app",
         app_environment="test",
         app_version="0.1.0",
@@ -127,7 +128,12 @@ def test_ask_normalizes_function_call():
 
     response = service.ask(
         user_input="Que horas são?",
-        tools=[{"type": "function", "name": "get_current_utc_time"}],
+        tools=[
+            {
+                "type": "function",
+                "name": "get_current_utc_time",
+            }
+        ],
     )
 
     assert len(response.tool_calls) == 1
@@ -160,4 +166,7 @@ def test_continue_after_tools_uses_previous_response_id():
     )
 
     assert response.output_text == "Resposta final."
-    assert client.responses.calls[0]["previous_response_id"] == "resp-tool"
+    assert (
+        client.responses.calls[0]["previous_response_id"]
+        == "resp-tool"
+    )
