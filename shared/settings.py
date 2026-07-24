@@ -15,6 +15,9 @@ class AppSettings:
     foundry_model_deployment: str
     foundry_embedding_deployment: str
 
+    azure_openai_endpoint: str
+    azure_openai_api_key: str
+
     app_name: str
     app_environment: str
     app_version: str
@@ -29,6 +32,8 @@ class AppSettings:
     azure_search_index_name: str = "supply-chain-docs"
     azure_search_admin_key: str = ""
     azure_search_top_k: int = 3
+    azure_search_vector_field: str = "content_vector"
+    azure_search_vector_dimensions: int = 1536
 
 
 def _required(name: str) -> str:
@@ -75,6 +80,12 @@ def load_settings() -> AppSettings:
         ),
         foundry_embedding_deployment=_required(
             "FOUNDRY_EMBEDDING_DEPLOYMENT"
+        ),
+        azure_openai_endpoint=_required(
+            "AZURE_OPENAI_ENDPOINT"
+        ),
+        azure_openai_api_key=_required(
+            "AZURE_OPENAI_API_KEY"
         ),
         app_name=os.getenv(
             "APP_NAME",
@@ -124,5 +135,13 @@ def load_settings() -> AppSettings:
         azure_search_top_k=_positive_int(
             "AZURE_SEARCH_TOP_K",
             3,
+        ),
+        azure_search_vector_field=os.getenv(
+            "AZURE_SEARCH_VECTOR_FIELD",
+            "content_vector",
+        ).strip(),
+        azure_search_vector_dimensions=_positive_int(
+            "AZURE_SEARCH_VECTOR_DIMENSIONS",
+            1536,
         ),
     )

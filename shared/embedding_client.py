@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
-from azure.ai.projects import AIProjectClient
-from azure.core.credentials import TokenCredential
-from azure.identity import DefaultAzureCredential
+from openai import OpenAI
 
 
 class EmbeddingsResourceProtocol(Protocol):
@@ -21,51 +19,26 @@ class EmbeddingClientProtocol(Protocol):
     embeddings: EmbeddingsResourceProtocol
 
 
-CredentialFactory = Callable[[], TokenCredential]
-
-ProjectClientFactory = Callable[
-    [str, TokenCredential],
-    AIProjectClient,
-]
-
-
 def create_embedding_client(
     *,
-    project_endpoint: str,
-    credential_factory: CredentialFactory | None = None,
-    project_client_factory: ProjectClientFactory | None = None,
+    endpoint: str,
+    api_key: str,
 ) -> EmbeddingClientProtocol:
-    normalized_endpoint = project_endpoint.strip()
+    normalized_endpoint = endpoint.strip()
 
     if not normalized_endpoint:
         raise ValueError(
-            "FOUNDRY_PROJECT_ENDPOINT is required to create "
-            "the embedding client."
+            "AZURE_OPENAI_ENDPOINT is required to create the embedding client."
         )
 
-    credential_builder = (
-        credential_factory or DefaultAzureCredential
-    )
+    normalized_api_key = api_key.strip()
 
-    project_client_builder = (
-        project_client_factory or _create_project_client
-    )
+    if not normalized_api_key:
+        raise ValueError(
+            "AZURE_OPENAI_API_KEY is required to create the embedding client."
+        )
 
-    credential = credential_builder()
-
-    project_client = project_client_builder(
-        normalized_endpoint,
-        credential,
-    )
-
-    return project_client.get_openai_client()
-
-
-def _create_project_client(
-    endpoint: str,
-    credential: TokenCredential,
-) -> AIProjectClient:
-    return AIProjectClient(
-        endpoint=endpoint,
-        credential=credential,
+    return OpenAI(
+        api_key=normalized_api_key,
+        base_url=f"{normalized_endpoint.rstrip('/')}/openai/v1/",
     )

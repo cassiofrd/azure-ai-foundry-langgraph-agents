@@ -1,0 +1,32 @@
+[
+  {
+    "id": "inventory-bearing-a100",
+    "title": "Bearing A100 inventory policy",
+    "content": "Bearing A100 is a critical production component. The target inventory level is 500 units, the reorder point is 180 units, and the preferred replenishment quantity is 350 units. Inventory planners should review the item whenever projected stock falls below the reorder point.",
+    "agent": "inventory",
+    "doc_type": "inventory_policy",
+    "entity_type": "material",
+    "entity_id": "A100",
+    "source": "internal_inventory_manual"
+  },
+  {
+    "id": "inventory-bolt-b200",
+    "title": "Bolt B200 inventory policy",
+    "content": "Bolt B200 is a standard fastening component. The target inventory level is 1200 units, the reorder point is 400 units, and the preferred replenishment quantity is 800 units. Demand is generally stable, but purchasing should consider open production orders before creating a replenishment request.",
+    "agent": "inventory",
+    "doc_type": "inventory_policy",
+    "entity_type": "material",
+    "entity_id": "B200",
+    "source": "internal_inventory_manual"
+  },
+  {
+    "id": "inventory-valve-v300",
+    "title": "Valve V300 shortage procedure",
+    "content": "Valve V300 is considered a high-impact item because shortages can stop the assembly line. When available inventory is below 60 units, the inventory team must verify open purchase orders, expected demand, and supplier lead time before recommending an emergency order.",
+    "agent": "inventory",
+    "doc_type": "shortage_procedure",
+    "entity_type": "material",
+    "entity_id": "V300",
+    "source": "inventory_operations_guide"
+  }
+]

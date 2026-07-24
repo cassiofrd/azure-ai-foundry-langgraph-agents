@@ -1,0 +1,32 @@
+[
+  {
+    "id": "supplier-northwind-components",
+    "title": "Northwind Components supplier profile",
+    "content": "Northwind Components supplies bearings and mechanical assemblies. Its standard lead time is 12 calendar days. The supplier has strong delivery reliability and should be preferred for normal replenishment of Bearing A100 when pricing remains within the approved contract range.",
+    "agent": "supplier",
+    "doc_type": "supplier_profile",
+    "entity_type": "supplier",
+    "entity_id": "SUP-NORTHWIND",
+    "source": "supplier_master_data"
+  },
+  {
+    "id": "supplier-contoso-industrial",
+    "title": "Contoso Industrial supplier profile",
+    "content": "Contoso Industrial supplies bolts, screws, and other fastening components. Its standard lead time is 7 calendar days. The supplier supports high-volume orders and is the primary approved supplier for Bolt B200.",
+    "agent": "supplier",
+    "doc_type": "supplier_profile",
+    "entity_type": "supplier",
+    "entity_id": "SUP-CONTOSO",
+    "source": "supplier_master_data"
+  },
+  {
+    "id": "supplier-fabrikam-flow",
+    "title": "Fabrikam Flow Systems supplier profile",
+    "content": "Fabrikam Flow Systems supplies industrial valves. Its standard lead time is 18 calendar days, but expedited orders may be delivered in 10 days after commercial approval. The company is an approved supplier for Valve V300.",
+    "agent": "supplier",
+    "doc_type": "supplier_profile",
+    "entity_type": "supplier",
+    "entity_id": "SUP-FABRIKAM",
+    "source": "supplier_master_data"
+  }
+]

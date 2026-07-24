@@ -1,0 +1,32 @@
+[
+  {
+    "id": "logistics-standard-ground",
+    "title": "Standard ground transportation policy",
+    "content": "Standard ground transportation should be used for routine replenishment when the expected delivery date satisfies the production requirement. It has the lowest transportation cost and normally requires three to five business days after supplier dispatch.",
+    "agent": "logistics",
+    "doc_type": "transportation_policy",
+    "entity_type": "transportation_mode",
+    "entity_id": "GROUND-STANDARD",
+    "source": "logistics_policy_manual"
+  },
+  {
+    "id": "logistics-expedited-ground",
+    "title": "Expedited ground transportation policy",
+    "content": "Expedited ground transportation should be considered when a material shortage may affect production but air freight is not commercially justified. It normally requires one to two business days after supplier dispatch and requires approval from the logistics coordinator.",
+    "agent": "logistics",
+    "doc_type": "transportation_policy",
+    "entity_type": "transportation_mode",
+    "entity_id": "GROUND-EXPEDITED",
+    "source": "logistics_policy_manual"
+  },
+  {
+    "id": "logistics-air-freight",
+    "title": "Emergency air freight policy",
+    "content": "Air freight is reserved for urgent shortages with a confirmed risk of production interruption. Before selecting air freight, the planner must document the shortage impact, verify that no local inventory transfer is available, and obtain management approval because of the higher transportation cost.",
+    "agent": "logistics",
+    "doc_type": "transportation_policy",
+    "entity_type": "transportation_mode",
+    "entity_id": "AIR-EMERGENCY",
+    "source": "logistics_policy_manual"
+  }
+]

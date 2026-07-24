@@ -23,7 +23,8 @@ class EmbeddingService:
     ) -> None:
         self._settings = settings
         self._client = client or create_embedding_client(
-            project_endpoint=settings.foundry_project_endpoint,
+            endpoint=settings.azure_openai_endpoint,
+            api_key=settings.azure_openai_api_key,
         )
 
     def create_embedding(

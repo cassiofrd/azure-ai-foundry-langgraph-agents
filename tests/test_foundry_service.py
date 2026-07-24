@@ -29,6 +29,8 @@ def settings() -> AppSettings:
         ),
         foundry_model_deployment="test-deployment",
         foundry_embedding_deployment="embedding-test-deployment",
+        azure_openai_endpoint="https://example.openai.azure.com",
+        azure_openai_api_key="test-api-key",
         app_name="test-app",
         app_environment="test",
         app_version="0.1.0",

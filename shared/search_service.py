@@ -6,6 +6,7 @@ from typing import Any, Callable, Iterable, Protocol
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
 
+from shared.embedding_service import EmbeddingService
 from shared.settings import AppSettings
 
 
@@ -60,12 +61,14 @@ class SearchService:
         index_name: str,
         admin_key: str,
         top_k: int = 3,
+        embedding_service: EmbeddingService | None = None,
         client_factory: SearchClientFactory | None = None,
     ) -> None:
         self._endpoint = endpoint.strip()
         self._index_name = index_name.strip()
         self._admin_key = admin_key.strip()
         self._top_k = top_k
+        self._embedding_service = embedding_service
         self._client_factory = (
             client_factory or self._create_search_client
         )
@@ -77,13 +80,23 @@ class SearchService:
         cls,
         settings: AppSettings,
         *,
+        embedding_service: EmbeddingService | None = None,
         client_factory: SearchClientFactory | None = None,
     ) -> SearchService:
+        resolved_embedding_service = (
+            embedding_service
+            or EmbeddingService(
+                settings=settings,
+                client=None,
+            )
+        )
+
         return cls(
             endpoint=settings.azure_search_endpoint,
             index_name=settings.azure_search_index_name,
             admin_key=settings.azure_search_admin_key,
             top_k=settings.azure_search_top_k,
+            embedding_service=resolved_embedding_service,
             client_factory=client_factory,
         )
 

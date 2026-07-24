@@ -61,6 +61,8 @@ def _create_settings() -> AppSettings:
         foundry_embedding_deployment=(
             "text-embedding-3-small"
         ),
+        azure_openai_endpoint="https://example.openai.azure.com",
+        azure_openai_api_key="test-api-key",
         app_name="test-app",
         app_environment="test",
         app_version="0.1.0",
