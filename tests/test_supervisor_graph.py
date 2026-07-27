@@ -132,6 +132,13 @@ def test_general_question_returns_direct_answer(
         == "resp-1"
     )
 
+    execution = result["execution"]
+    assert execution.tools == []
+    assert len(execution.llm_calls) == 1
+    assert execution.llm_calls[0].operation == "initial_response"
+    assert execution.is_finished is True
+    assert execution.duration_ms is not None
+
     assert len(client.responses.calls) == 1
 
 
@@ -200,6 +207,27 @@ def test_tool_execution_flow(
     )
 
     assert len(client.responses.calls) == 2
+
+    execution = result["execution"]
+
+    assert len(execution.llm_calls) == 2
+    assert [call.operation for call in execution.llm_calls] == [
+        "initial_response",
+        "continue_after_tools",
+    ]
+    assert len(execution.tools) == 1
+    assert execution.is_finished is True
+
+    tool_execution = execution.tools[0]
+
+    assert (
+        tool_execution.tool_name
+        == "get_current_utc_time"
+    )
+
+    assert tool_execution.arguments == {}
+
+    assert tool_execution.duration_ms >= 0
 
 
 def test_empty_input_is_rejected(

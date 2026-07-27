@@ -172,3 +172,65 @@ def test_continue_after_tools_uses_previous_response_id():
         client.responses.calls[0]["previous_response_id"]
         == "resp-tool"
     )
+
+def test_ask_records_llm_telemetry_and_usage():
+    from shared.execution_context import ExecutionContext
+
+    client = FakeClient(
+        SimpleNamespace(
+            id="resp-usage",
+            output=[],
+            output_text="Resposta.",
+            usage=SimpleNamespace(
+                input_tokens=11,
+                output_tokens=7,
+                total_tokens=18,
+            ),
+        )
+    )
+    service = FoundryService(
+        settings=settings(),
+        client_factory=lambda: client,
+    )
+    context = ExecutionContext()
+
+    service.ask(
+        user_input="Olá",
+        execution_context=context,
+    )
+
+    assert len(context.llm_calls) == 1
+    call = context.llm_calls[0]
+    assert call.operation == "initial_response"
+    assert call.response_id == "resp-usage"
+    assert call.input_tokens == 11
+    assert call.output_tokens == 7
+    assert call.total_tokens == 18
+    assert call.duration_ms >= 0
+    assert call.succeeded is True
+
+
+def test_continue_after_tools_records_second_llm_call():
+    from shared.execution_context import ExecutionContext
+
+    client = FakeClient(
+        SimpleNamespace(
+            id="resp-final",
+            output=[],
+            output_text="Resposta final.",
+        )
+    )
+    service = FoundryService(
+        settings=settings(),
+        client_factory=lambda: client,
+    )
+    context = ExecutionContext()
+
+    service.continue_after_tools(
+        previous_response_id="resp-tool",
+        tool_outputs=[],
+        execution_context=context,
+    )
+
+    assert len(context.llm_calls) == 1
+    assert context.llm_calls[0].operation == "continue_after_tools"

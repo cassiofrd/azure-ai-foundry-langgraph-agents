@@ -154,3 +154,55 @@ def test_empty_tool_call_collection_returns_empty_result():
 
     assert result.executed_tool_names == []
     assert result.tool_outputs == []
+
+def test_uses_shared_execution_context():
+    from shared.execution_context import ExecutionContext
+
+    context = ExecutionContext()
+    executor = ToolExecutor(
+        tool_registry={"example_tool": lambda: "ok"}
+    )
+
+    result = executor.execute(
+        (
+            ToolCall(
+                name="example_tool",
+                arguments="{}",
+                call_id="call-shared",
+            ),
+        ),
+        execution_context=context,
+    )
+
+    assert result.execution_context is context
+    assert context.tools[0].call_id == "call-shared"
+    assert context.tools[0].succeeded is True
+
+
+def test_records_tool_failure_before_reraising():
+    from shared.execution_context import ExecutionContext
+
+    def failing_tool() -> None:
+        raise ValueError("tool failed")
+
+    context = ExecutionContext()
+    executor = ToolExecutor(
+        tool_registry={"failing_tool": failing_tool}
+    )
+
+    with pytest.raises(ValueError, match="tool failed"):
+        executor.execute(
+            (
+                ToolCall(
+                    name="failing_tool",
+                    arguments="{}",
+                    call_id="call-failure",
+                ),
+            ),
+            execution_context=context,
+        )
+
+    assert len(context.tools) == 1
+    assert context.tools[0].succeeded is False
+    assert context.tools[0].error_type == "ValueError"
+    assert len(context.errors) == 1
