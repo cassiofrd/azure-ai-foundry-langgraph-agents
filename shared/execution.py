@@ -1,11 +1,20 @@
 from __future__ import annotations
 
+"""Backward-compatible execution types.
+
+ExecutionContext now has a single canonical implementation in
+``shared.execution_context``. Importing it from this module remains supported
+while older retrieval typing is retained until the retrieval telemetry sprint.
+"""
+
 from typing import TypedDict
 
-
-class ToolExecutionContext(TypedDict, total=False):
-    tool_name: str
-    latency_ms: float
+from shared.execution_context import (
+    ExecutionContext,
+    ExecutionErrorInfo,
+    LLMCallInfo,
+    ToolExecutionInfo,
+)
 
 
 class RetrievalContext(TypedDict, total=False):
@@ -14,8 +23,10 @@ class RetrievalContext(TypedDict, total=False):
     retrieved_documents: list[str]
 
 
-class ExecutionContext(TypedDict, total=False):
-    model: str
-    total_latency_ms: float
-    tool_executions: list[ToolExecutionContext]
-    retrieval: RetrievalContext | None
+__all__ = [
+    "ExecutionContext",
+    "ExecutionErrorInfo",
+    "LLMCallInfo",
+    "RetrievalContext",
+    "ToolExecutionInfo",
+]

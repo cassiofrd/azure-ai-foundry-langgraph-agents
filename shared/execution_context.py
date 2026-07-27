@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
@@ -66,6 +66,18 @@ class ExecutionContext:
         return self.finished_at is not None
 
     @property
+    def status(self) -> str:
+        if not self.is_finished:
+            return "running"
+
+        functional_errors = [
+            error
+            for error in self.errors
+            if error.component != "telemetry"
+        ]
+        return "failed" if functional_errors else "success"
+
+    @property
     def total_input_tokens(self) -> int:
         return sum(call.input_tokens or 0 for call in self.llm_calls)
 
@@ -75,14 +87,28 @@ class ExecutionContext:
 
     @property
     def total_tokens(self) -> int:
-        explicit_totals = [
+        return sum(
             call.total_tokens
-            for call in self.llm_calls
             if call.total_tokens is not None
-        ]
-        if len(explicit_totals) == len(self.llm_calls):
-            return sum(explicit_totals)
-        return self.total_input_tokens + self.total_output_tokens
+            else (call.input_tokens or 0) + (call.output_tokens or 0)
+            for call in self.llm_calls
+        )
+
+    @property
+    def total_llm_duration_ms(self) -> float:
+        return sum(call.duration_ms for call in self.llm_calls)
+
+    @property
+    def total_tool_duration_ms(self) -> float:
+        return sum(tool.duration_ms for tool in self.tools)
+
+    @property
+    def successful_llm_calls(self) -> int:
+        return sum(call.succeeded for call in self.llm_calls)
+
+    @property
+    def successful_tool_calls(self) -> int:
+        return sum(tool.succeeded for tool in self.tools)
 
     def record_error(
         self,
@@ -108,3 +134,32 @@ class ExecutionContext:
         self.duration_ms = (
             self.finished_at - self.started_at
         ).total_seconds() * 1000
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-serializable representation of the execution."""
+        return {
+            "execution_id": self.execution_id,
+            "status": self.status,
+            "started_at": self.started_at.isoformat(),
+            "finished_at": (
+                self.finished_at.isoformat()
+                if self.finished_at is not None
+                else None
+            ),
+            "duration_ms": self.duration_ms,
+            "metrics": {
+                "llm_call_count": len(self.llm_calls),
+                "successful_llm_calls": self.successful_llm_calls,
+                "tool_call_count": len(self.tools),
+                "successful_tool_calls": self.successful_tool_calls,
+                "error_count": len(self.errors),
+                "total_input_tokens": self.total_input_tokens,
+                "total_output_tokens": self.total_output_tokens,
+                "total_tokens": self.total_tokens,
+                "total_llm_duration_ms": self.total_llm_duration_ms,
+                "total_tool_duration_ms": self.total_tool_duration_ms,
+            },
+            "llm_calls": [asdict(call) for call in self.llm_calls],
+            "tools": [asdict(tool) for tool in self.tools],
+            "errors": [asdict(error) for error in self.errors],
+        }

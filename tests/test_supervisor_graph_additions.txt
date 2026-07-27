@@ -1,0 +1,53 @@
+from __future__ import annotations
+
+from types import SimpleNamespace
+
+from graphs.supervisor_graph import build_supervisor_graph
+
+
+def test_graph_emits_finished_execution(settings):
+    emitted = []
+    client = FakeClient(
+        direct_response(
+            "Resposta direta.",
+            response_id="resp-observed",
+        )
+    )
+    graph = build_supervisor_graph(
+        settings=settings,
+        client_factory=lambda: client,
+        telemetry_sink=emitted.append,
+    )
+
+    result = invoke_graph(graph, "Explique telemetria.")
+
+    assert len(emitted) == 1
+    assert emitted[0] is result["execution"]
+    assert emitted[0].is_finished
+    assert emitted[0].status == "success"
+
+
+def test_telemetry_failure_does_not_break_answer(settings):
+    def broken_sink(_execution):
+        raise RuntimeError("telemetry unavailable")
+
+    client = FakeClient(
+        direct_response(
+            "Resposta preservada.",
+            response_id="resp-safe",
+        )
+    )
+    graph = build_supervisor_graph(
+        settings=settings,
+        client_factory=lambda: client,
+        telemetry_sink=broken_sink,
+    )
+
+    result = invoke_graph(graph, "Teste.")
+
+    assert result["answer"] == "Resposta preservada."
+    assert result["execution"].status == "success"
+    assert any(
+        error.component == "telemetry"
+        for error in result["execution"].errors
+    )

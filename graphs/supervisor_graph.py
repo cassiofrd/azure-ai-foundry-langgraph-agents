@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from langgraph.graph import END, START, StateGraph
 
@@ -9,20 +9,43 @@ from shared.foundry_client import ResponsesClient
 from shared.foundry_service import FoundryService
 from shared.settings import AppSettings
 from shared.state import SupervisorState
+from shared.telemetry import emit_execution_summary
 from shared.tool_executor import ToolExecutor
 from shared.tools import TOOLS
+
+
+TelemetrySink = Callable[[ExecutionContext], None]
 
 
 def build_supervisor_graph(
     *,
     settings: AppSettings,
     client_factory: Callable[[], ResponsesClient],
+    telemetry_sink: TelemetrySink | None = emit_execution_summary,
 ):
     foundry_service = FoundryService(
         settings=settings,
         client_factory=client_factory,
     )
     tool_executor = ToolExecutor()
+
+    def finalize_execution(
+        execution_context: ExecutionContext,
+    ) -> None:
+        execution_context.finish()
+
+        if telemetry_sink is None:
+            return
+
+        try:
+            telemetry_sink(execution_context)
+        except Exception as exc:
+            # Observability must never prevent the agent from responding.
+            execution_context.record_error(
+                component="telemetry",
+                operation="emit_execution_summary",
+                error=exc,
+            )
 
     def call_foundry_with_tools(
         state: SupervisorState,
@@ -37,7 +60,7 @@ def build_supervisor_graph(
                 operation="validate_input",
                 error=error,
             )
-            execution_context.finish()
+            finalize_execution(execution_context)
             raise error
 
         try:
@@ -56,7 +79,7 @@ def build_supervisor_graph(
                         "Foundry returned an empty response."
                     )
 
-                execution_context.finish()
+                finalize_execution(execution_context)
                 return {
                     "user_input": user_input,
                     "intent": "general",
@@ -89,7 +112,7 @@ def build_supervisor_graph(
                 else "general"
             )
 
-            execution_context.finish()
+            finalize_execution(execution_context)
             return {
                 "user_input": user_input,
                 "intent": intent,
@@ -109,7 +132,9 @@ def build_supervisor_graph(
                     operation="call_foundry_with_tools",
                     error=exc,
                 )
-            execution_context.finish()
+
+            if not execution_context.is_finished:
+                finalize_execution(execution_context)
             raise
 
     graph = StateGraph(SupervisorState)
