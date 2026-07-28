@@ -28,5 +28,15 @@
     "entity_type": "material",
     "entity_id": "V300",
     "source": "inventory_operations_guide"
+  },
+  {
+  "id": "inventory-bolt-m10",
+  "title": "Bolt M10 inventory policy",
+  "content": "Bolt M10, also referred to as Parafuso M10, is a standard metric fastening component. The target inventory level is 900 units, the reorder point is 300 units, and the preferred replenishment quantity is 600 units. Inventory planners should review open production orders and expected demand before issuing a replenishment request.",
+  "agent": "inventory",
+  "doc_type": "inventory_policy",
+  "entity_type": "material",
+  "entity_id": "M10",
+  "source": "internal_inventory_manual"
   }
 ]

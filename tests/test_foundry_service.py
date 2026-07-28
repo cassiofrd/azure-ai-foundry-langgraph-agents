@@ -234,3 +234,54 @@ def test_continue_after_tools_records_second_llm_call():
 
     assert len(context.llm_calls) == 1
     assert context.llm_calls[0].operation == "continue_after_tools"
+
+
+def test_ask_passes_system_prompt_as_instructions():
+    client = FakeClient(
+        SimpleNamespace(
+            id="resp-instructions",
+            output=[],
+            output_text="Resposta.",
+        )
+    )
+    service = FoundryService(
+        settings=settings(),
+        client_factory=lambda: client,
+    )
+
+    service.ask(user_input="Olá")
+
+    assert (
+        client.responses.calls[0]["instructions"]
+        == settings().system_prompt
+    )
+
+
+def test_continue_after_tools_passes_system_prompt_as_instructions():
+    client = FakeClient(
+        SimpleNamespace(
+            id="resp-final",
+            output=[],
+            output_text="Resposta final.",
+        )
+    )
+    service = FoundryService(
+        settings=settings(),
+        client_factory=lambda: client,
+    )
+
+    service.continue_after_tools(
+        previous_response_id="resp-tool",
+        tool_outputs=[
+            {
+                "type": "function_call_output",
+                "call_id": "call-1",
+                "output": "resultado",
+            }
+        ],
+    )
+
+    assert (
+        client.responses.calls[0]["instructions"]
+        == settings().system_prompt
+    )

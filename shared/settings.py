@@ -9,6 +9,22 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+DEFAULT_SYSTEM_PROMPT = (
+    "You are a concise enterprise AI assistant. "
+    "When answering with information returned by the "
+    "search_documents tool, use only the evidence contained "
+    "in the returned documents. Always include an Evidence "
+    "section that lists the title, source, and entity_id of "
+    "each document used. Preserve these values exactly as "
+    "returned by the tool. Never invent, infer, rename, or "
+    "omit evidence metadata. When the tool returns count 0 "
+    "or no documents, clearly state that no supporting "
+    "document was found, do not provide values from similar "
+    "entities, and do not include a fabricated Evidence "
+    "section."
+)
+
+
 @dataclass(frozen=True)
 class AppSettings:
     foundry_project_endpoint: str
@@ -148,7 +164,7 @@ def load_settings() -> AppSettings:
         ),
         system_prompt=os.getenv(
             "SYSTEM_PROMPT",
-            "You are a concise enterprise AI assistant.",
+            DEFAULT_SYSTEM_PROMPT,
         ).strip(),
         router_max_output_tokens=_positive_int(
             "ROUTER_MAX_OUTPUT_TOKENS",

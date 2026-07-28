@@ -5,6 +5,7 @@ from typing import Any, Callable, Iterable, Protocol
 
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
+from azure.search.documents.models import VectorizedQuery
 
 from shared.embedding_service import EmbeddingService
 from shared.settings import AppSettings
@@ -17,6 +18,7 @@ class SearchClientProtocol(Protocol):
         search_text: str,
         top: int,
         select: list[str],
+        vector_queries: list[Any],
     ) -> Iterable[dict[str, Any]]:
         ...
 
@@ -61,6 +63,7 @@ class SearchService:
         index_name: str,
         admin_key: str,
         top_k: int = 3,
+        vector_field: str = "content_vector",
         embedding_service: EmbeddingService | None = None,
         client_factory: SearchClientFactory | None = None,
     ) -> None:
@@ -68,6 +71,7 @@ class SearchService:
         self._index_name = index_name.strip()
         self._admin_key = admin_key.strip()
         self._top_k = top_k
+        self._vector_field = vector_field.strip()
         self._embedding_service = embedding_service
         self._client_factory = (
             client_factory or self._create_search_client
@@ -96,6 +100,7 @@ class SearchService:
             index_name=settings.azure_search_index_name,
             admin_key=settings.azure_search_admin_key,
             top_k=settings.azure_search_top_k,
+            vector_field=settings.azure_search_vector_field,
             embedding_service=resolved_embedding_service,
             client_factory=client_factory,
         )
@@ -104,13 +109,27 @@ class SearchService:
         self,
         query: str,
     ) -> list[SearchDocument]:
-
         normalized_query = query.strip()
 
         if not normalized_query:
             raise ValueError(
                 "Search query cannot be empty."
             )
+
+        if self._embedding_service is None:
+            raise ValueError(
+                "EmbeddingService is required for hybrid search."
+            )
+
+        embedding_result = self._embedding_service.create_embedding(
+            normalized_query
+        )
+
+        vector_query = VectorizedQuery(
+            vector=list(embedding_result.embedding),
+            k_nearest_neighbors=self._top_k,
+            fields=self._vector_field,
+        )
 
         client = self._client_factory(
             self._endpoint,
@@ -122,6 +141,7 @@ class SearchService:
             "search_text": normalized_query,
             "top": self._top_k,
             "select": self._SELECT_FIELDS,
+            "vector_queries": [vector_query],
         }
 
         results = client.search(**search_kwargs)
@@ -152,7 +172,6 @@ class SearchService:
         self,
         documents: list[SearchDocument],
     ) -> list[SearchDocument]:
-
         unique: dict[str, SearchDocument] = {}
 
         for document in documents:
@@ -167,7 +186,6 @@ class SearchService:
         self,
         documents: list[SearchDocument],
     ) -> list[SearchDocument]:
-
         return [
             document
             for document in documents
@@ -175,7 +193,6 @@ class SearchService:
         ]
 
     def _validate_configuration(self) -> None:
-
         if not self._endpoint:
             raise ValueError(
                 "AZURE_SEARCH_ENDPOINT is required to use "
@@ -199,13 +216,18 @@ class SearchService:
                 "Azure Search top_k must be greater than zero."
             )
 
+        if not self._vector_field:
+            raise ValueError(
+                "AZURE_SEARCH_VECTOR_FIELD is required to use "
+                "hybrid search."
+            )
+
     @staticmethod
     def _create_search_client(
         endpoint: str,
         index_name: str,
         admin_key: str,
     ) -> SearchClient:
-
         return SearchClient(
             endpoint=endpoint,
             index_name=index_name,
@@ -217,7 +239,6 @@ class SearchService:
         cls,
         document: dict[str, Any],
     ) -> SearchDocument:
-
         raw_score = document.get("@search.score")
 
         score = (

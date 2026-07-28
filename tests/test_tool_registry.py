@@ -6,12 +6,10 @@ from shared.tools import search_documents
 
 
 def test_search_tool_registered():
-
     assert "search_documents" in TOOL_REGISTRY
 
 
 def test_search_tool_declared():
-
     names = {
         tool["name"]
         for tool in TOOLS
@@ -21,7 +19,6 @@ def test_search_tool_declared():
 
 
 def test_search_tool_has_query_parameter():
-
     tool = next(
         tool
         for tool in TOOLS
@@ -44,7 +41,6 @@ def test_search_tool_has_query_parameter():
 
 
 def test_search_tool_description_mentions_enterprise_knowledge():
-
     tool = next(
         tool
         for tool in TOOLS
@@ -61,7 +57,6 @@ def test_search_tool_description_mentions_enterprise_knowledge():
 def test_search_documents_returns_structured_payload(
     monkeypatch,
 ):
-
     class FakeDocument:
         title = "Parafuso M10"
         content = "Fornecedor ABC"
@@ -97,6 +92,10 @@ def test_search_documents_returns_structured_payload(
         == "Quem fornece o PARAFUSO-M10?"
     )
 
+    assert payload["requested_entity_codes"] == [
+        "PARAFUSO-M10"
+    ]
+
     assert len(payload["documents"]) == 1
 
     document = payload["documents"][0]
@@ -112,7 +111,6 @@ def test_search_documents_returns_structured_payload(
 def test_search_documents_returns_empty_payload(
     monkeypatch,
 ):
-
     class FakeSearchService:
         def search_documents(
             self,
@@ -133,3 +131,125 @@ def test_search_documents_returns_empty_payload(
     assert payload["documents"] == []
 
     assert "message" in payload
+
+
+def test_search_documents_keeps_exact_entity_match(
+    monkeypatch,
+):
+    class ExactDocument:
+        title = "Bolt M10 inventory policy"
+        content = "Target inventory is 900 units."
+        agent = "inventory"
+        doc_type = "inventory_policy"
+        entity_type = "material"
+        entity_id = "M10"
+        source = "manual"
+        score = 0.033
+
+    class SimilarDocument:
+        title = "Bolt B200 inventory policy"
+        content = "Target inventory is 700 units."
+        agent = "inventory"
+        doc_type = "inventory_policy"
+        entity_type = "material"
+        entity_id = "B200"
+        source = "manual"
+        score = 0.032
+
+    class FakeSearchService:
+        def search_documents(
+            self,
+            query: str,
+        ):
+            return [
+                ExactDocument(),
+                SimilarDocument(),
+            ]
+
+    monkeypatch.setattr(
+        "shared.tools._search_service",
+        FakeSearchService(),
+    )
+
+    payload = json.loads(
+        search_documents(
+            "Qual é a política do parafuso M10?"
+        )
+    )
+
+    assert payload["count"] == 1
+    assert payload["requested_entity_codes"] == ["M10"]
+    assert payload["documents"][0]["entity_id"] == "M10"
+
+
+def test_search_documents_matches_entity_code_case_insensitively(
+    monkeypatch,
+):
+    class FakeDocument:
+        title = "Bolt M10 inventory policy"
+        content = "Target inventory is 900 units."
+        agent = "inventory"
+        doc_type = "inventory_policy"
+        entity_type = "material"
+        entity_id = "m10"
+        source = "manual"
+        score = 0.033
+
+    class FakeSearchService:
+        def search_documents(
+            self,
+            query: str,
+        ):
+            return [FakeDocument()]
+
+    monkeypatch.setattr(
+        "shared.tools._search_service",
+        FakeSearchService(),
+    )
+
+    payload = json.loads(
+        search_documents(
+            "Qual é a política do parafuso M10?"
+        )
+    )
+
+    assert payload["count"] == 1
+    assert payload["documents"][0]["entity_id"] == "m10"
+
+
+def test_search_documents_rejects_similar_entity(
+    monkeypatch,
+):
+    class FakeDocument:
+        title = "Bearing A100 inventory policy"
+        content = "Target inventory is 500 units."
+        agent = "inventory"
+        doc_type = "inventory_policy"
+        entity_type = "material"
+        entity_id = "A100"
+        source = "manual"
+        score = 0.033
+
+    class FakeSearchService:
+        def search_documents(
+            self,
+            query: str,
+        ):
+            return [FakeDocument()]
+
+    monkeypatch.setattr(
+        "shared.tools._search_service",
+        FakeSearchService(),
+    )
+
+    payload = json.loads(
+        search_documents(
+            "Qual é a política do rolamento Z500?"
+        )
+    )
+
+    assert payload["count"] == 0
+    assert payload["documents"] == []
+    assert payload["requested_entity_codes"] == ["Z500"]
+    assert "exact" in payload["message"].lower()
+    assert "substitutes" in payload["message"].lower()

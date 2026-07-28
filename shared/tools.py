@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from typing import Any, Callable
 
@@ -14,6 +15,11 @@ ToolFunction = Callable[..., Any]
 _settings = load_settings()
 
 _search_service: SearchService | None = None
+
+_ENTITY_CODE_PATTERN = re.compile(
+    r"\b[A-Za-z]+(?:-[A-Za-z]+)*-?\d+\b",
+    re.IGNORECASE,
+)
 
 
 def get_current_utc_time() -> str:
@@ -36,14 +42,61 @@ def _get_search_service() -> SearchService:
     return _search_service
 
 
+def _extract_entity_codes(
+    query: str,
+) -> set[str]:
+    return {
+        match.group(0).upper()
+        for match in _ENTITY_CODE_PATTERN.finditer(query)
+    }
+
+
+def _normalize_entity_id(
+    value: str,
+) -> str:
+    return value.strip().upper()
+
+
 def search_documents(
     query: str,
 ) -> str:
-
     documents = (
         _get_search_service()
         .search_documents(query)
     )
+
+    requested_codes = _extract_entity_codes(query)
+
+    if requested_codes:
+        exact_documents = [
+            document
+            for document in documents
+            if _normalize_entity_id(document.entity_id)
+            in requested_codes
+        ]
+
+        if not exact_documents:
+            return json.dumps(
+                {
+                    "query": query,
+                    "count": 0,
+                    "documents": [],
+                    "requested_entity_codes": sorted(
+                        requested_codes
+                    ),
+                    "message": (
+                        "No document was found with an exact "
+                        "entity identifier matching the code "
+                        "requested by the user. Do not use "
+                        "similar entities as substitutes and "
+                        "do not infer a policy from them."
+                    ),
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+
+        documents = exact_documents
 
     if not documents:
         return json.dumps(
@@ -59,11 +112,16 @@ def search_documents(
             ensure_ascii=False,
         )
 
-    payload = {
+    payload: dict[str, Any] = {
         "query": query,
         "count": len(documents),
         "documents": [],
     }
+
+    if requested_codes:
+        payload["requested_entity_codes"] = sorted(
+            requested_codes
+        )
 
     for document in documents:
         payload["documents"].append(
@@ -110,7 +168,9 @@ TOOLS: list[dict[str, Any]] = [
             "manuals and internal business information. "
             "Use this tool whenever the user's question "
             "depends on enterprise knowledge instead of "
-            "the model's general knowledge."
+            "the model's general knowledge. When the user "
+            "provides an entity code, only an exact entity "
+            "identifier match may be used as evidence."
         ),
         "parameters": {
             "type": "object",

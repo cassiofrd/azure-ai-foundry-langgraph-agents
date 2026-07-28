@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from shared.settings import DEFAULT_SYSTEM_PROMPT
 from shared.settings import load_settings
 
 
@@ -173,3 +174,62 @@ def test_invalid_vector_dimensions_fail_fast(
         match="AZURE_SEARCH_VECTOR_DIMENSIONS",
     ):
         load_settings()
+
+def test_system_prompt_uses_evidence_aware_default(
+    monkeypatch,
+):
+    monkeypatch.setenv(
+        "FOUNDRY_PROJECT_ENDPOINT",
+        "https://example.services.ai.azure.com/api/projects/example",
+    )
+    monkeypatch.setenv(
+        "FOUNDRY_MODEL_DEPLOYMENT",
+        "gpt-test",
+    )
+    monkeypatch.setenv(
+        "FOUNDRY_EMBEDDING_DEPLOYMENT",
+        "text-embedding-3-small",
+    )
+    monkeypatch.delenv(
+        "SYSTEM_PROMPT",
+        raising=False,
+    )
+
+    settings = load_settings()
+
+    assert settings.system_prompt == DEFAULT_SYSTEM_PROMPT
+    assert "search_documents" in settings.system_prompt
+    assert "Evidence" in settings.system_prompt
+    assert "title" in settings.system_prompt
+    assert "source" in settings.system_prompt
+    assert "entity_id" in settings.system_prompt
+    assert "count 0" in settings.system_prompt
+    assert "Never invent" in settings.system_prompt
+
+
+def test_custom_system_prompt_overrides_default(
+    monkeypatch,
+):
+    monkeypatch.setenv(
+        "FOUNDRY_PROJECT_ENDPOINT",
+        "https://example.services.ai.azure.com/api/projects/example",
+    )
+    monkeypatch.setenv(
+        "FOUNDRY_MODEL_DEPLOYMENT",
+        "gpt-test",
+    )
+    monkeypatch.setenv(
+        "FOUNDRY_EMBEDDING_DEPLOYMENT",
+        "text-embedding-3-small",
+    )
+    monkeypatch.setenv(
+        "SYSTEM_PROMPT",
+        "Use the organization-specific assistant policy.",
+    )
+
+    settings = load_settings()
+
+    assert (
+        settings.system_prompt
+        == "Use the organization-specific assistant policy."
+    )

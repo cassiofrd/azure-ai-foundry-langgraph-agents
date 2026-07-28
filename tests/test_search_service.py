@@ -1,8 +1,23 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
+from shared.embedding_service import EmbeddingResult
 from shared.search_service import SearchService
+
+
+class FakeEmbeddingService:
+    def create_embedding(
+        self,
+        text: str,
+    ) -> EmbeddingResult:
+        assert text == "PARAFUSO-M10"
+
+        return EmbeddingResult(
+            embedding=(0.1, 0.2, 0.3),
+        )
 
 
 class FakeSearchClient:
@@ -12,6 +27,7 @@ class FakeSearchClient:
         search_text: str,
         top: int,
         select: list[str],
+        vector_queries: list[Any],
     ):
         assert search_text == "PARAFUSO-M10"
         assert top == 3
@@ -26,6 +42,14 @@ class FakeSearchClient:
             "entity_id",
             "source",
         ]
+
+        assert len(vector_queries) == 1
+
+        vector_query = vector_queries[0]
+
+        assert vector_query.vector == [0.1, 0.2, 0.3]
+        assert vector_query.k_nearest_neighbors == 3
+        assert vector_query.fields == "content_vector"
 
         return [
             {
@@ -92,7 +116,13 @@ class FakeLongContentSearchClient:
         search_text: str,
         top: int,
         select: list[str],
+        vector_queries: list[Any],
     ):
+        assert search_text == "PARAFUSO-M10"
+        assert top == 3
+        assert select
+        assert len(vector_queries) == 1
+
         return [
             {
                 "id": "long-document",
@@ -125,20 +155,42 @@ def fake_long_content_factory(
     index_name: str,
     admin_key: str,
 ):
+    assert endpoint == "endpoint"
+    assert index_name == "index"
+    assert admin_key == "key"
+
     return FakeLongContentSearchClient()
 
 
 def build_service(
     *,
     client_factory=fake_factory,
+    embedding_service: Any | None = None,
+    vector_field: str = "content_vector",
 ) -> SearchService:
     return SearchService(
         endpoint="endpoint",
         index_name="index",
         admin_key="key",
         top_k=3,
+        vector_field=vector_field,
+        embedding_service=(
+            embedding_service
+            if embedding_service is not None
+            else FakeEmbeddingService()
+        ),
         client_factory=client_factory,
     )
+
+
+def test_search_documents_sends_hybrid_query():
+    service = build_service()
+
+    documents = service.search_documents(
+        "PARAFUSO-M10"
+    )
+
+    assert documents
 
 
 def test_search_documents_enriches_results():
@@ -241,12 +293,31 @@ def test_empty_query_raises():
         service.search_documents("   ")
 
 
+def test_missing_embedding_service_raises():
+    service = SearchService(
+        endpoint="endpoint",
+        index_name="index",
+        admin_key="key",
+        top_k=3,
+        vector_field="content_vector",
+        embedding_service=None,
+        client_factory=fake_factory,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="EmbeddingService is required for hybrid search",
+    ):
+        service.search_documents("PARAFUSO-M10")
+
+
 @pytest.mark.parametrize(
     (
         "endpoint",
         "index_name",
         "admin_key",
         "top_k",
+        "vector_field",
         "expected_message",
     ),
     [
@@ -255,6 +326,7 @@ def test_empty_query_raises():
             "index",
             "key",
             3,
+            "content_vector",
             "AZURE_SEARCH_ENDPOINT",
         ),
         (
@@ -262,6 +334,7 @@ def test_empty_query_raises():
             "",
             "key",
             3,
+            "content_vector",
             "AZURE_SEARCH_INDEX_NAME",
         ),
         (
@@ -269,6 +342,7 @@ def test_empty_query_raises():
             "index",
             "",
             3,
+            "content_vector",
             "AZURE_SEARCH_ADMIN_KEY",
         ),
         (
@@ -276,7 +350,16 @@ def test_empty_query_raises():
             "index",
             "key",
             0,
+            "content_vector",
             "top_k",
+        ),
+        (
+            "endpoint",
+            "index",
+            "key",
+            3,
+            "",
+            "AZURE_SEARCH_VECTOR_FIELD",
         ),
     ],
 )
@@ -285,6 +368,7 @@ def test_invalid_configuration_raises(
     index_name: str,
     admin_key: str,
     top_k: int,
+    vector_field: str,
     expected_message: str,
 ):
     with pytest.raises(
@@ -296,5 +380,7 @@ def test_invalid_configuration_raises(
             index_name=index_name,
             admin_key=admin_key,
             top_k=top_k,
+            vector_field=vector_field,
+            embedding_service=FakeEmbeddingService(),
             client_factory=fake_factory,
         )

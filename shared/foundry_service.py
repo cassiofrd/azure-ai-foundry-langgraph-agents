@@ -70,6 +70,7 @@ class FoundryService:
     ) -> FoundryResponse:
         request: dict[str, Any] = {
             "model": self._settings.foundry_model_deployment,
+            "instructions": self._settings.system_prompt,
             "previous_response_id": previous_response_id,
             "input": list(tool_outputs),
             "max_output_tokens": self._settings.model_max_output_tokens,
