@@ -1,1 +1,0 @@
-"""Administrative scripts for project infrastructure."""

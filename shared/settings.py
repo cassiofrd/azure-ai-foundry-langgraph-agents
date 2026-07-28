@@ -35,6 +35,13 @@ class AppSettings:
     azure_search_vector_field: str = "content_vector"
     azure_search_vector_dimensions: int = 1536
 
+    telemetry_console_enabled: bool = True
+    azure_monitor_enabled: bool = False
+    applicationinsights_connection_string: str = ""
+    azure_monitor_logger_name: str = "agent.telemetry"
+    azure_monitor_force_flush: bool = False
+    azure_monitor_flush_timeout_ms: int = 10000
+
 
 def _required(name: str) -> str:
     value = os.getenv(name, "").strip()
@@ -56,7 +63,6 @@ def _positive_int(
 
     try:
         value = int(raw)
-
     except ValueError as exc:
         raise ValueError(
             f"{name} must be an integer."
@@ -70,7 +76,44 @@ def _positive_int(
     return value
 
 
+def _boolean(
+    name: str,
+    default: bool,
+) -> bool:
+    default_text = "true" if default else "false"
+    raw = os.getenv(name, default_text).strip().lower()
+
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+
+    if raw in {"0", "false", "no", "off"}:
+        return False
+
+    raise ValueError(
+        f"{name} must be one of: "
+        "true, false, 1, 0, yes, no, on, off."
+    )
+
+
 def load_settings() -> AppSettings:
+    azure_monitor_enabled = _boolean(
+        "AZURE_MONITOR_ENABLED",
+        False,
+    )
+    applicationinsights_connection_string = os.getenv(
+        "APPLICATIONINSIGHTS_CONNECTION_STRING",
+        "",
+    ).strip()
+
+    if (
+        azure_monitor_enabled
+        and not applicationinsights_connection_string
+    ):
+        raise ValueError(
+            "APPLICATIONINSIGHTS_CONNECTION_STRING is required "
+            "when AZURE_MONITOR_ENABLED=true."
+        )
+
     return AppSettings(
         foundry_project_endpoint=_required(
             "FOUNDRY_PROJECT_ENDPOINT"
@@ -143,5 +186,25 @@ def load_settings() -> AppSettings:
         azure_search_vector_dimensions=_positive_int(
             "AZURE_SEARCH_VECTOR_DIMENSIONS",
             1536,
+        ),
+        telemetry_console_enabled=_boolean(
+            "TELEMETRY_CONSOLE_ENABLED",
+            True,
+        ),
+        azure_monitor_enabled=azure_monitor_enabled,
+        applicationinsights_connection_string=(
+            applicationinsights_connection_string
+        ),
+        azure_monitor_logger_name=os.getenv(
+            "AZURE_MONITOR_LOGGER_NAME",
+            "agent.telemetry",
+        ).strip(),
+        azure_monitor_force_flush=_boolean(
+            "AZURE_MONITOR_FORCE_FLUSH",
+            False,
+        ),
+        azure_monitor_flush_timeout_ms=_positive_int(
+            "AZURE_MONITOR_FLUSH_TIMEOUT_MS",
+            10000,
         ),
     )

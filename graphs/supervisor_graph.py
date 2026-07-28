@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
@@ -9,20 +10,28 @@ from shared.foundry_client import ResponsesClient
 from shared.foundry_service import FoundryService
 from shared.settings import AppSettings
 from shared.state import SupervisorState
-from shared.telemetry import emit_execution_summary
+from shared.telemetry import (
+    TelemetrySink,
+    build_telemetry_sink,
+)
 from shared.tool_executor import ToolExecutor
 from shared.tools import TOOLS
 
 
-TelemetrySink = Callable[[ExecutionContext], None]
+_DEFAULT_TELEMETRY_SINK = object()
 
 
 def build_supervisor_graph(
     *,
     settings: AppSettings,
     client_factory: Callable[[], ResponsesClient],
-    telemetry_sink: TelemetrySink | None = emit_execution_summary,
+    telemetry_sink: TelemetrySink | None | Any = (
+        _DEFAULT_TELEMETRY_SINK
+    ),
 ):
+    if telemetry_sink is _DEFAULT_TELEMETRY_SINK:
+        telemetry_sink = build_telemetry_sink(settings)
+
     foundry_service = FoundryService(
         settings=settings,
         client_factory=client_factory,
@@ -43,7 +52,7 @@ def build_supervisor_graph(
             # Observability must never prevent the agent from responding.
             execution_context.record_error(
                 component="telemetry",
-                operation="emit_execution_summary",
+                operation="emit_execution",
                 error=exc,
             )
 

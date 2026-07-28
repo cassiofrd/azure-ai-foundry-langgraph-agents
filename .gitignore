@@ -1,11 +1,38 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Python environments
 .venv/
+venv/
+env/
+
+# Python caches
 __pycache__/
 *.py[cod]
 .pytest_cache/
-.env
-.vscode/
-.idea/
-logs/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Build artifacts
 dist/
 build/
 *.egg-info/
+
+# Editors
+.vscode/
+.idea/
+
+# Local logs and temporary files
+logs/
+*.log
+*.tmp
+*.bak
+
+# Operating system
+.DS_Store
+Thumbs.db
