@@ -25,6 +25,61 @@ DEFAULT_SYSTEM_PROMPT = (
 )
 
 
+DEFAULT_ROUTER_PROMPT = (
+    "Classify the user request into exactly one route: inventory, supplier, "
+    "logistics, inventory_supplier, inventory_logistics, supplier_logistics, "
+    "inventory_supplier_logistics, time, or general. Use inventory for stock levels, "
+    "reorder points, replenishment quantities and shortage policies. "
+    "Use supplier for approved suppliers, procurement sources, lead "
+    "times and vendor information. Use inventory_supplier when a single "
+    "request requires both inventory policy facts and supplier or lead-time "
+    "facts to produce a complete answer. Use logistics for transportation modes, "
+    "transit times, freight, dispatch, shipping constraints, urgency and logistics "
+    "approvals. Use a combined route whenever two or three domains are required. "
+    "Use time only for current UTC time. Use general for everything else. "
+    "Return only the route name."
+)
+
+DEFAULT_INVENTORY_PROMPT = (
+    DEFAULT_SYSTEM_PROMPT
+    + " You are the Inventory Agent. Answer only inventory-domain "
+    "questions. Use search_inventory_documents for enterprise facts. "
+    "Do not answer supplier questions from general knowledge."
+)
+
+DEFAULT_SUPPLIER_PROMPT = (
+    DEFAULT_SYSTEM_PROMPT
+    + " You are the Supplier Agent. Answer only supplier and procurement "
+    "questions. Use search_supplier_documents for enterprise facts. "
+    "Do not answer inventory policy questions from general knowledge."
+)
+
+DEFAULT_LOGISTICS_PROMPT = (
+    DEFAULT_SYSTEM_PROMPT
+    + " You are the Logistics Agent. Answer only transportation and logistics "
+    "questions. Use search_logistics_documents for enterprise facts. Do not "
+    "answer inventory or supplier questions from general knowledge."
+)
+
+DEFAULT_MULTI_AGENT_PROMPT = (
+    "You are the Supply Chain Supervisor. Synthesize one concise answer from "
+    "the specialist outputs supplied by the application. Answer in the same "
+    "language as the original user request. Use only facts present in the "
+    "specialist outputs. Distinguish clearly between confirmed facts, a "
+    "partially supported conclusion, and missing information. Preserve every "
+    "Evidence item exactly as supplied, deduplicate repeated items, and include "
+    "one Evidence section at the end. If a specialist found no supporting "
+    "document, state only the limitation relevant to the answer and do not "
+    "invent missing facts. Do not claim that a supplier or transportation plan "
+    "can satisfy an inventory policy unless the supplied evidence supports it."
+)
+
+DEFAULT_TIME_PROMPT = (
+    "You are the Time Agent. Use get_current_utc_time whenever the user "
+    "asks for the current UTC time. Answer concisely."
+)
+
+
 @dataclass(frozen=True)
 class AppSettings:
     foundry_project_endpoint: str
@@ -43,6 +98,11 @@ class AppSettings:
 
     router_max_output_tokens: int
     router_prompt: str
+    inventory_prompt: str = DEFAULT_INVENTORY_PROMPT
+    supplier_prompt: str = DEFAULT_SUPPLIER_PROMPT
+    logistics_prompt: str = DEFAULT_LOGISTICS_PROMPT
+    time_prompt: str = DEFAULT_TIME_PROMPT
+    multi_agent_prompt: str = DEFAULT_MULTI_AGENT_PROMPT
 
     azure_search_endpoint: str = ""
     azure_search_index_name: str = "supply-chain-docs"
@@ -172,12 +232,27 @@ def load_settings() -> AppSettings:
         ),
         router_prompt=os.getenv(
             "ROUTER_PROMPT",
-            (
-                "Classify the request as 'time' if it asks "
-                "for the current time or UTC time; otherwise "
-                "classify it as 'general'. Return only the "
-                "route name."
-            ),
+            DEFAULT_ROUTER_PROMPT,
+        ).strip(),
+        inventory_prompt=os.getenv(
+            "INVENTORY_PROMPT",
+            DEFAULT_INVENTORY_PROMPT,
+        ).strip(),
+        supplier_prompt=os.getenv(
+            "SUPPLIER_PROMPT",
+            DEFAULT_SUPPLIER_PROMPT,
+        ).strip(),
+        logistics_prompt=os.getenv(
+            "LOGISTICS_PROMPT",
+            DEFAULT_LOGISTICS_PROMPT,
+        ).strip(),
+        time_prompt=os.getenv(
+            "TIME_PROMPT",
+            DEFAULT_TIME_PROMPT,
+        ).strip(),
+        multi_agent_prompt=os.getenv(
+            "MULTI_AGENT_PROMPT",
+            DEFAULT_MULTI_AGENT_PROMPT,
         ).strip(),
         azure_search_endpoint=os.getenv(
             "AZURE_SEARCH_ENDPOINT",

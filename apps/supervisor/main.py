@@ -39,6 +39,7 @@ def main() -> None:
             {
                 "user_input": user_input,
                 "intent": "general",
+                "agent": "general",
                 "answer": "",
                 "conversation_response_id": conversation_response_id,
             }
@@ -47,7 +48,15 @@ def main() -> None:
         conversation_response_id = result["conversation_response_id"]
 
         print(f"Route: {result['intent']}")
-        print(f"Agent: {result['answer']}\n")
+        print(f"Specialist: {result['agent']}")
+        if result.get("specialist_outputs"):
+            participants = ", ".join(result["specialist_outputs"].keys())
+            print(f"Participants: {participants}")
+        if result.get("specialist_queries"):
+            print("Specialist queries:")
+            for name, query in result["specialist_queries"].items():
+                print(f"- {name}: {query}")
+        print(f"Answer: {result['answer']}\n")
 
 
 if __name__ == "__main__":

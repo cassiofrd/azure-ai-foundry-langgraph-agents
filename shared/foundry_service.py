@@ -40,16 +40,29 @@ class FoundryService:
         tools: list[dict[str, Any]] | None = None,
         previous_response_id: str | None = None,
         execution_context: ExecutionContext | None = None,
+        instructions: str | None = None,
+        max_output_tokens: int | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
     ) -> FoundryResponse:
         request: dict[str, Any] = {
             "model": self._settings.foundry_model_deployment,
-            "instructions": self._settings.system_prompt,
+            "instructions": instructions or self._settings.system_prompt,
             "input": user_input,
-            "max_output_tokens": self._settings.model_max_output_tokens,
+            "max_output_tokens": (
+                max_output_tokens
+                or self._settings.model_max_output_tokens
+            ),
         }
 
         if tools:
             request["tools"] = tools
+
+        if tool_choice is not None:
+            if not tools:
+                raise ValueError(
+                    "tool_choice can only be used when tools are provided."
+                )
+            request["tool_choice"] = tool_choice
 
         if previous_response_id:
             request["previous_response_id"] = previous_response_id
@@ -67,10 +80,11 @@ class FoundryService:
         previous_response_id: str,
         tool_outputs: Iterable[dict[str, str]],
         execution_context: ExecutionContext | None = None,
+        instructions: str | None = None,
     ) -> FoundryResponse:
         request: dict[str, Any] = {
             "model": self._settings.foundry_model_deployment,
-            "instructions": self._settings.system_prompt,
+            "instructions": instructions or self._settings.system_prompt,
             "previous_response_id": previous_response_id,
             "input": list(tool_outputs),
             "max_output_tokens": self._settings.model_max_output_tokens,

@@ -384,3 +384,18 @@ def test_invalid_configuration_raises(
             embedding_service=FakeEmbeddingService(),
             client_factory=fake_factory,
         )
+
+
+def test_search_documents_applies_agent_filter():
+    captured = {}
+
+    class FilterClient:
+        def search(self, **kwargs):
+            captured.update(kwargs)
+            return []
+
+    service = build_service(
+        client_factory=lambda endpoint, index_name, admin_key: FilterClient()
+    )
+    service.search_documents("PARAFUSO-M10", agent="supplier")
+    assert captured["filter"] == "agent eq 'supplier'"

@@ -19,6 +19,7 @@ class SearchClientProtocol(Protocol):
         top: int,
         select: list[str],
         vector_queries: list[Any],
+        filter: str | None = None,
     ) -> Iterable[dict[str, Any]]:
         ...
 
@@ -108,6 +109,8 @@ class SearchService:
     def search_documents(
         self,
         query: str,
+        *,
+        agent: str | None = None,
     ) -> list[SearchDocument]:
         normalized_query = query.strip()
 
@@ -137,12 +140,17 @@ class SearchService:
             self._admin_key,
         )
 
-        search_kwargs = {
+        search_kwargs: dict[str, Any] = {
             "search_text": normalized_query,
             "top": self._top_k,
             "select": self._SELECT_FIELDS,
             "vector_queries": [vector_query],
         }
+
+        normalized_agent = (agent or "").strip()
+        if normalized_agent:
+            escaped_agent = normalized_agent.replace("'", "''")
+            search_kwargs["filter"] = f"agent eq '{escaped_agent}'"
 
         results = client.search(**search_kwargs)
 

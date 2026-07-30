@@ -253,3 +253,75 @@ def test_search_documents_rejects_similar_entity(
     assert payload["requested_entity_codes"] == ["Z500"]
     assert "exact" in payload["message"].lower()
     assert "substitutes" in payload["message"].lower()
+
+
+def test_specialist_search_tools_are_registered_and_declared():
+    names = {tool["name"] for tool in TOOLS}
+    for name in (
+        "search_inventory_documents",
+        "search_supplier_documents",
+    ):
+        assert name in TOOL_REGISTRY
+        assert name in names
+
+
+def test_inventory_search_filters_domain(monkeypatch):
+    calls = []
+
+    class FakeSearchService:
+        def search_documents(self, query, *, agent=None):
+            calls.append((query, agent))
+            return []
+
+    monkeypatch.setattr(
+        "shared.tools._search_service",
+        FakeSearchService(),
+    )
+    from shared.tools import search_inventory_documents
+
+    search_inventory_documents("M10")
+    assert calls == [("M10", "inventory")]
+
+
+def test_supplier_search_filters_domain(monkeypatch):
+    calls = []
+
+    class FakeSearchService:
+        def search_documents(self, query, *, agent=None):
+            calls.append((query, agent))
+            return []
+
+    monkeypatch.setattr(
+        "shared.tools._search_service",
+        FakeSearchService(),
+    )
+    from shared.tools import search_supplier_documents
+
+    search_supplier_documents("M10")
+    assert calls == [("M10", "supplier")]
+
+
+def test_logistics_search_filters_domain(monkeypatch):
+    calls = []
+
+    class FakeSearchService:
+        def search_documents(self, query, *, agent=None):
+            calls.append((query, agent))
+            return []
+
+    monkeypatch.setattr(
+        "shared.tools._search_service",
+        FakeSearchService(),
+    )
+    from shared.tools import search_logistics_documents
+
+    search_logistics_documents("transporte urgente")
+    assert calls == [("transporte urgente", "logistics")]
+
+
+def test_logistics_tool_is_registered_and_declared():
+    from shared.tools import TOOLS
+
+    names = {tool["name"] for tool in TOOLS}
+    assert "search_logistics_documents" in TOOL_REGISTRY
+    assert "search_logistics_documents" in names

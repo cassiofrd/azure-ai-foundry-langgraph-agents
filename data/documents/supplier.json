@@ -28,5 +28,15 @@
     "entity_type": "supplier",
     "entity_id": "SUP-FABRIKAM",
     "source": "supplier_master_data"
+  },
+  {
+    "id": "supplier-bolt-m10",
+    "title": "Bolt M10 approved supplier",
+    "content": "Bolt M10, also referred to as Parafuso M10, is primarily supplied by Contoso Industrial. The standard contracted lead time is 7 calendar days. High-volume replenishment orders should follow the approved fastening-components contract.",
+    "agent": "supplier",
+    "doc_type": "approved_supplier",
+    "entity_type": "material",
+    "entity_id": "M10",
+    "source": "supplier_master_data"
   }
 ]

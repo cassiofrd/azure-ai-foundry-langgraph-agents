@@ -233,3 +233,38 @@ def test_custom_system_prompt_overrides_default(
         settings.system_prompt
         == "Use the organization-specific assistant policy."
     )
+
+
+def test_specialist_prompts_use_defaults(monkeypatch):
+    from shared.settings import (
+        DEFAULT_INVENTORY_PROMPT,
+        DEFAULT_MULTI_AGENT_PROMPT,
+        DEFAULT_ROUTER_PROMPT,
+        DEFAULT_SUPPLIER_PROMPT,
+        DEFAULT_TIME_PROMPT,
+    )
+
+    monkeypatch.setenv(
+        "FOUNDRY_PROJECT_ENDPOINT",
+        "https://example.services.ai.azure.com/api/projects/example",
+    )
+    monkeypatch.setenv("FOUNDRY_MODEL_DEPLOYMENT", "gpt-test")
+    monkeypatch.setenv(
+        "FOUNDRY_EMBEDDING_DEPLOYMENT",
+        "text-embedding-3-small",
+    )
+    for name in (
+        "ROUTER_PROMPT",
+        "INVENTORY_PROMPT",
+        "SUPPLIER_PROMPT",
+        "TIME_PROMPT",
+        "MULTI_AGENT_PROMPT",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    loaded = load_settings()
+    assert loaded.router_prompt == DEFAULT_ROUTER_PROMPT
+    assert loaded.inventory_prompt == DEFAULT_INVENTORY_PROMPT
+    assert loaded.supplier_prompt == DEFAULT_SUPPLIER_PROMPT
+    assert loaded.time_prompt == DEFAULT_TIME_PROMPT
+    assert loaded.multi_agent_prompt == DEFAULT_MULTI_AGENT_PROMPT

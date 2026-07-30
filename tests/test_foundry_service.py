@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections import deque
 from types import SimpleNamespace
 
+import pytest
+
 from shared.foundry_service import FoundryService
 from shared.settings import AppSettings
 
@@ -285,3 +287,87 @@ def test_continue_after_tools_passes_system_prompt_as_instructions():
         client.responses.calls[0]["instructions"]
         == settings().system_prompt
     )
+
+
+def test_ask_accepts_instruction_and_token_overrides():
+    client = FakeClient(
+        SimpleNamespace(id="resp", output=[], output_text="inventory")
+    )
+    service = FoundryService(
+        settings=settings(),
+        client_factory=lambda: client,
+    )
+    service.ask(
+        user_input="route this",
+        instructions="router instructions",
+        max_output_tokens=8,
+    )
+    call = client.responses.calls[0]
+    assert call["instructions"] == "router instructions"
+    assert call["max_output_tokens"] == 8
+
+
+def test_continue_after_tools_accepts_instruction_override():
+    client = FakeClient(
+        SimpleNamespace(id="resp", output=[], output_text="done")
+    )
+    service = FoundryService(
+        settings=settings(),
+        client_factory=lambda: client,
+    )
+    service.continue_after_tools(
+        previous_response_id="previous",
+        tool_outputs=[],
+        instructions="specialist instructions",
+    )
+    assert (
+        client.responses.calls[0]["instructions"]
+        == "specialist instructions"
+    )
+
+
+def test_ask_passes_required_tool_choice():
+    raw = SimpleNamespace(
+        id="resp-tool-choice",
+        output=[],
+        output_text="ok",
+    )
+    client = FakeClient(raw)
+    service = FoundryService(
+        settings=settings(),
+        client_factory=lambda: client,
+    )
+
+    service.ask(
+        user_input="Use the tool.",
+        tools=[
+            {
+                "type": "function",
+                "name": "search_supplier_documents",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                },
+            }
+        ],
+        tool_choice="required",
+    )
+
+    assert client.responses.calls[0]["tool_choice"] == "required"
+
+
+def test_ask_rejects_tool_choice_without_tools():
+    client = FakeClient()
+    service = FoundryService(
+        settings=settings(),
+        client_factory=lambda: client,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="tool_choice can only be used when tools are provided",
+    ):
+        service.ask(
+            user_input="Use the tool.",
+            tool_choice="required",
+        )
