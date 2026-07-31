@@ -396,3 +396,98 @@ def test_three_specialist_route_runs_all_agents_and_synthesizes(
     assert "Original user request" in synthesis_call["input"]
     assert "Logistics Agent output" in synthesis_call["input"]
     assert synthesis_call["instructions"] == settings.multi_agent_prompt
+
+
+def test_session_memory_resolves_follow_up_entity(settings, monkeypatch):
+    from shared.conversation_store import InMemoryConversationStore
+
+    registry = __import__(
+        "shared.tools", fromlist=["TOOL_REGISTRY"]
+    ).TOOL_REGISTRY
+    monkeypatch.setitem(
+        registry,
+        "search_supplier_documents",
+        lambda query: "supplier result",
+    )
+    store = InMemoryConversationStore()
+    store.append_turn(
+        session_id="demo",
+        user_input="Qual é a política do M10?",
+        assistant_output="Estoque alvo: 900 unidades.",
+        last_entity="M10",
+        previous_response_id="previous-response",
+    )
+    client = FakeClient(
+        direct_response("supplier", "router-2"),
+        tool_call_response("search_supplier_documents", "supplier-tool"),
+        direct_response("Contoso fornece o M10.", "supplier-final"),
+    )
+    graph = build_supervisor_graph(
+        settings=settings,
+        client_factory=lambda: client,
+        telemetry_sink=None,
+        conversation_store=store,
+    )
+
+    result = graph.invoke(
+        {
+            "user_input": "E quem fornece esse item?",
+            "intent": "general",
+            "agent": "general",
+            "answer": "",
+            "conversation_response_id": None,
+            "session_id": "demo",
+        }
+    )
+
+    assert result["intent"] == "supplier"
+    assert result["memory_last_entity"] == "M10"
+    assert "Resolved conversation entity_id: M10" in (
+        client.responses.calls[0]["input"]
+    )
+    assert "Resolved conversation entity_id: M10" in (
+        client.responses.calls[1]["input"]
+    )
+    saved = store.load("demo")
+    assert saved.last_entity == "M10"
+    assert saved.previous_response_id == "supplier-final"
+    assert saved.messages[-1].content == "Contoso fornece o M10."
+
+
+def test_general_route_receives_recent_memory_context(settings):
+    from shared.conversation_store import InMemoryConversationStore
+
+    store = InMemoryConversationStore()
+    store.append_turn(
+        session_id="demo",
+        user_input="Meu nome é Cássio.",
+        assistant_output="Prazer, Cássio.",
+        last_entity=None,
+        previous_response_id=None,
+    )
+    client = FakeClient(
+        direct_response("general", "router-2"),
+        direct_response("Seu nome é Cássio.", "general-final"),
+    )
+    graph = build_supervisor_graph(
+        settings=settings,
+        client_factory=lambda: client,
+        telemetry_sink=None,
+        conversation_store=store,
+    )
+
+    result = graph.invoke(
+        {
+            "user_input": "Qual é o meu nome?",
+            "intent": "general",
+            "agent": "general",
+            "answer": "",
+            "conversation_response_id": None,
+            "session_id": "demo",
+        }
+    )
+
+    assert result["answer"] == "Seu nome é Cássio."
+    general_input = client.responses.calls[1]["input"]
+    assert "Recent conversation context" in general_input
+    assert "Meu nome é Cássio" in general_input

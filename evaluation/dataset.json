@@ -1,0 +1,51 @@
+[
+  {
+    "case_id": "inventory-m10",
+    "message": "Qual é a política de estoque do M10?",
+    "expected_route": "inventory",
+    "expected_tools": ["search_inventory_documents"],
+    "expected_entity_ids": ["M10"],
+    "required_answer_terms": ["900", "300", "600"]
+  },
+  {
+    "case_id": "supplier-m10",
+    "message": "Quem fornece o M10 e qual é o prazo de entrega?",
+    "expected_route": "supplier",
+    "expected_tools": ["search_supplier_documents"],
+    "expected_entity_ids": ["M10"],
+    "required_answer_terms": ["Contoso", "7"]
+  },
+  {
+    "case_id": "logistics-options",
+    "message": "Quais são as opções de transporte para uma reposição urgente?",
+    "expected_route": "logistics",
+    "expected_tools": ["search_logistics_documents"],
+    "required_answer_terms": ["transporte"]
+  },
+  {
+    "case_id": "multi-agent-m10",
+    "message": "Qual é o melhor plano de reposição do M10 considerando estoque, fornecedor e transporte?",
+    "expected_route": "inventory_supplier_logistics",
+    "expected_participants": ["inventory", "supplier", "logistics"],
+    "expected_tools": [
+      "search_inventory_documents",
+      "search_supplier_documents",
+      "search_logistics_documents"
+    ],
+    "expected_entity_ids": ["M10"],
+    "required_answer_terms": ["900", "Contoso"]
+  },
+  {
+    "case_id": "missing-entity",
+    "message": "Qual é a política de estoque do X999?",
+    "expected_route": "inventory",
+    "expected_tools": ["search_inventory_documents"],
+    "forbidden_answer_terms": ["900 unidades", "1200 unidades"]
+  },
+  {
+    "case_id": "general-rag",
+    "message": "Explique resumidamente o que é RAG.",
+    "expected_route": "general",
+    "required_answer_terms": ["recuper"]
+  }
+]

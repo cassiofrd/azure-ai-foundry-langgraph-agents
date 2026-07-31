@@ -36,3 +36,14 @@ logs/
 # Operating system
 .DS_Store
 Thumbs.db
+# Evaluation outputs
+evaluation/results/*.json
+!evaluation/results/.gitkeep
+
+# Local archives and reports
+*.zip
+*.tar.gz
+
+# Streamlit local settings and secrets
+.streamlit/secrets.toml
+

@@ -104,6 +104,14 @@ class AppSettings:
     time_prompt: str = DEFAULT_TIME_PROMPT
     multi_agent_prompt: str = DEFAULT_MULTI_AGENT_PROMPT
 
+    conversation_store_backend: str = "memory"
+    conversation_store_fallback_to_memory: bool = False
+    redis_url: str = "redis://localhost:6379/0"
+    conversation_ttl_seconds: int = 86400
+    conversation_history_limit: int = 12
+    conversation_key_prefix: str = "agent:conversation"
+    default_session_id: str = "local-demo"
+
     azure_search_endpoint: str = ""
     azure_search_index_name: str = "supply-chain-docs"
     azure_search_admin_key: str = ""
@@ -190,6 +198,16 @@ def load_settings() -> AppSettings:
             "when AZURE_MONITOR_ENABLED=true."
         )
 
+    conversation_store_backend = os.getenv(
+        "CONVERSATION_STORE_BACKEND",
+        "memory",
+    ).strip().lower()
+    if conversation_store_backend not in {"memory", "redis"}:
+        raise ValueError(
+            "CONVERSATION_STORE_BACKEND must be either "
+            "'memory' or 'redis'."
+        )
+
     return AppSettings(
         foundry_project_endpoint=_required(
             "FOUNDRY_PROJECT_ENDPOINT"
@@ -216,7 +234,7 @@ def load_settings() -> AppSettings:
         ).strip(),
         app_version=os.getenv(
             "APP_VERSION",
-            "0.1.0",
+            "1.0.0",
         ).strip(),
         model_max_output_tokens=_positive_int(
             "MODEL_MAX_OUTPUT_TOKENS",
@@ -253,6 +271,31 @@ def load_settings() -> AppSettings:
         multi_agent_prompt=os.getenv(
             "MULTI_AGENT_PROMPT",
             DEFAULT_MULTI_AGENT_PROMPT,
+        ).strip(),
+        conversation_store_backend=conversation_store_backend,
+        conversation_store_fallback_to_memory=_boolean(
+            "CONVERSATION_STORE_FALLBACK_TO_MEMORY",
+            False,
+        ),
+        redis_url=os.getenv(
+            "REDIS_URL",
+            "redis://localhost:6379/0",
+        ).strip(),
+        conversation_ttl_seconds=_positive_int(
+            "CONVERSATION_TTL_SECONDS",
+            86400,
+        ),
+        conversation_history_limit=_positive_int(
+            "CONVERSATION_HISTORY_LIMIT",
+            12,
+        ),
+        conversation_key_prefix=os.getenv(
+            "CONVERSATION_KEY_PREFIX",
+            "agent:conversation",
+        ).strip(),
+        default_session_id=os.getenv(
+            "DEFAULT_SESSION_ID",
+            "local-demo",
         ).strip(),
         azure_search_endpoint=os.getenv(
             "AZURE_SEARCH_ENDPOINT",

@@ -32,6 +32,10 @@ class SupervisorState(TypedDict):
     agent: AgentName
     answer: str
     conversation_response_id: str | None
+    session_id: NotRequired[str]
+    resolved_user_input: NotRequired[str]
+    memory_context: NotRequired[str]
+    memory_last_entity: NotRequired[str | None]
     specialist_outputs: NotRequired[dict[str, str]]
     specialist_queries: NotRequired[dict[str, str]]
     execution: NotRequired[ExecutionContext]

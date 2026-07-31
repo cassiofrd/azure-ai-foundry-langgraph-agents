@@ -6,6 +6,19 @@ from shared.settings import DEFAULT_SYSTEM_PROMPT
 from shared.settings import load_settings
 
 
+@pytest.fixture(autouse=True)
+def required_azure_openai_settings(monkeypatch):
+    """Keep settings tests independent from a developer's local .env."""
+    monkeypatch.setenv(
+        "AZURE_OPENAI_ENDPOINT",
+        "https://example.openai.azure.com/",
+    )
+    monkeypatch.setenv(
+        "AZURE_OPENAI_API_KEY",
+        "test-api-key",
+    )
+
+
 def test_load_settings(monkeypatch):
     monkeypatch.setenv(
         "FOUNDRY_PROJECT_ENDPOINT",
@@ -268,3 +281,108 @@ def test_specialist_prompts_use_defaults(monkeypatch):
     assert loaded.supplier_prompt == DEFAULT_SUPPLIER_PROMPT
     assert loaded.time_prompt == DEFAULT_TIME_PROMPT
     assert loaded.multi_agent_prompt == DEFAULT_MULTI_AGENT_PROMPT
+
+
+def test_conversation_settings_use_defaults(monkeypatch):
+    monkeypatch.setenv(
+        "FOUNDRY_PROJECT_ENDPOINT",
+        "https://example.services.ai.azure.com/api/projects/example",
+    )
+    monkeypatch.setenv("FOUNDRY_MODEL_DEPLOYMENT", "gpt-test")
+    monkeypatch.setenv(
+        "FOUNDRY_EMBEDDING_DEPLOYMENT",
+        "text-embedding-3-small",
+    )
+    for name in (
+        "CONVERSATION_STORE_BACKEND",
+        "CONVERSATION_STORE_FALLBACK_TO_MEMORY",
+        "REDIS_URL",
+        "CONVERSATION_TTL_SECONDS",
+        "CONVERSATION_HISTORY_LIMIT",
+        "CONVERSATION_KEY_PREFIX",
+        "DEFAULT_SESSION_ID",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    loaded = load_settings()
+
+    assert loaded.conversation_store_backend == "memory"
+    assert loaded.conversation_store_fallback_to_memory is False
+    assert loaded.redis_url == "redis://localhost:6379/0"
+    assert loaded.conversation_ttl_seconds == 86400
+    assert loaded.conversation_history_limit == 12
+    assert loaded.conversation_key_prefix == "agent:conversation"
+    assert loaded.default_session_id == "local-demo"
+
+
+def test_conversation_settings_can_be_overridden(monkeypatch):
+    monkeypatch.setenv(
+        "FOUNDRY_PROJECT_ENDPOINT",
+        "https://example.services.ai.azure.com/api/projects/example",
+    )
+    monkeypatch.setenv("FOUNDRY_MODEL_DEPLOYMENT", "gpt-test")
+    monkeypatch.setenv(
+        "FOUNDRY_EMBEDDING_DEPLOYMENT",
+        "text-embedding-3-small",
+    )
+    monkeypatch.setenv("CONVERSATION_STORE_BACKEND", "redis")
+    monkeypatch.setenv(
+        "CONVERSATION_STORE_FALLBACK_TO_MEMORY",
+        "true",
+    )
+    monkeypatch.setenv("REDIS_URL", "redis://example:6379/2")
+    monkeypatch.setenv("CONVERSATION_TTL_SECONDS", "3600")
+    monkeypatch.setenv("CONVERSATION_HISTORY_LIMIT", "5")
+    monkeypatch.setenv("CONVERSATION_KEY_PREFIX", "demo:chat")
+    monkeypatch.setenv("DEFAULT_SESSION_ID", "cassio")
+
+    loaded = load_settings()
+
+    assert loaded.conversation_store_backend == "redis"
+    assert loaded.conversation_store_fallback_to_memory is True
+    assert loaded.redis_url == "redis://example:6379/2"
+    assert loaded.conversation_ttl_seconds == 3600
+    assert loaded.conversation_history_limit == 5
+    assert loaded.conversation_key_prefix == "demo:chat"
+    assert loaded.default_session_id == "cassio"
+
+
+def test_invalid_conversation_backend_fails_fast(monkeypatch):
+    monkeypatch.setenv(
+        "FOUNDRY_PROJECT_ENDPOINT",
+        "https://example.services.ai.azure.com/api/projects/example",
+    )
+    monkeypatch.setenv("FOUNDRY_MODEL_DEPLOYMENT", "gpt-test")
+    monkeypatch.setenv(
+        "FOUNDRY_EMBEDDING_DEPLOYMENT",
+        "text-embedding-3-small",
+    )
+    monkeypatch.setenv("CONVERSATION_STORE_BACKEND", "invalid")
+
+    with pytest.raises(
+        ValueError,
+        match="CONVERSATION_STORE_BACKEND",
+    ):
+        load_settings()
+
+
+def test_invalid_conversation_fallback_flag_fails_fast(monkeypatch):
+    monkeypatch.setenv(
+        "FOUNDRY_PROJECT_ENDPOINT",
+        "https://example.services.ai.azure.com/api/projects/example",
+    )
+    monkeypatch.setenv("FOUNDRY_MODEL_DEPLOYMENT", "gpt-test")
+    monkeypatch.setenv(
+        "FOUNDRY_EMBEDDING_DEPLOYMENT",
+        "text-embedding-3-small",
+    )
+    monkeypatch.setenv(
+        "CONVERSATION_STORE_FALLBACK_TO_MEMORY",
+        "sometimes",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="CONVERSATION_STORE_FALLBACK_TO_MEMORY",
+    ):
+        load_settings()
