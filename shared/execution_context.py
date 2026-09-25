@@ -44,6 +44,13 @@ class ToolExecutionInfo:
 
 
 @dataclass(frozen=True)
+class EvidenceInfo:
+    title: str
+    source: str
+    entity_id: str
+
+
+@dataclass(frozen=True)
 class ExecutionErrorInfo:
     component: str
     operation: str
@@ -59,6 +66,7 @@ class ExecutionContext:
     duration_ms: float | None = None
     llm_calls: list[LLMCallInfo] = field(default_factory=list)
     tools: list[ToolExecutionInfo] = field(default_factory=list)
+    evidence: list[EvidenceInfo] = field(default_factory=list)
     errors: list[ExecutionErrorInfo] = field(default_factory=list)
 
     @property
@@ -161,5 +169,6 @@ class ExecutionContext:
             },
             "llm_calls": [asdict(call) for call in self.llm_calls],
             "tools": [asdict(tool) for tool in self.tools],
+            "evidence": [asdict(item) for item in self.evidence],
             "errors": [asdict(error) for error in self.errors],
         }

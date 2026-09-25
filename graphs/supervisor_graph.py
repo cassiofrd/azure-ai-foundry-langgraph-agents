@@ -19,6 +19,7 @@ from shared.state import AgentName, Intent, SupervisorState
 from shared.telemetry import TelemetrySink, build_telemetry_sink
 from shared.tool_executor import ToolExecutor
 from shared.tools import (
+    DEMAND_TOOLS,
     INVENTORY_TOOLS,
     LOGISTICS_TOOLS,
     SUPPLIER_TOOLS,
@@ -66,7 +67,7 @@ def build_supervisor_graph(
     tool_executor = ToolExecutor()
 
     specialist_config: dict[str, tuple[list[dict[str, Any]], str]] = {
-        "inventory": (INVENTORY_TOOLS, settings.inventory_prompt),
+        "inventory": ([*INVENTORY_TOOLS, *DEMAND_TOOLS], settings.inventory_prompt),
         "supplier": (SUPPLIER_TOOLS, settings.supplier_prompt),
         "logistics": (LOGISTICS_TOOLS, settings.logistics_prompt),
     }

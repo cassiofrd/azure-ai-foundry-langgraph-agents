@@ -27,11 +27,12 @@ def test_plan_creates_domain_specific_queries():
     )
 
     assert plan.entity_id == "M10"
-    assert "exact entity_id M10" in plan.inventory
+    assert "M10" in plan.inventory
+    assert "Retrieval V2" in plan.inventory
     assert "target stock level" in plan.inventory
     assert "supplier name" in plan.supplier
     assert "contractual lead time" in plan.supplier
-    assert "original request" not in plan.inventory.lower()
+    assert "original request" in plan.inventory.lower()
 
 
 def test_plan_without_entity_keeps_safe_fallback():
@@ -61,7 +62,7 @@ def test_plan_three_specialists_creates_logistics_query_without_product_code():
     assert plan.inventory is not None and "M10" in plan.inventory
     assert plan.supplier is not None and "M10" in plan.supplier
     assert plan.logistics is not None
-    assert "M10" not in plan.logistics
+    assert "M10" in plan.logistics
     assert "transportation modes" in plan.logistics
     assert set(plan.as_dict()) == {"inventory", "supplier", "logistics"}
 

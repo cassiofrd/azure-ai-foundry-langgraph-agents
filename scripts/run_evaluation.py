@@ -55,6 +55,7 @@ def main() -> int:
     print(f"Pass rate: {summary['pass_rate']:.1%}")
     print(f"Average duration: {summary['average_duration_ms']:.2f} ms")
     print(f"Average tokens: {summary['average_total_tokens']:.2f}")
+    print(f"Average tool calls: {summary['average_tool_calls']:.2f}")
     print(f"Report: {output}")
     return 0 if summary["failed_cases"] == 0 else 1
 

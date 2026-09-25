@@ -38,6 +38,7 @@ logs/
 Thumbs.db
 # Evaluation outputs
 evaluation/results/*.json
+evaluation/results_*.json
 !evaluation/results/.gitkeep
 
 # Local archives and reports
@@ -46,4 +47,3 @@ evaluation/results/*.json
 
 # Streamlit local settings and secrets
 .streamlit/secrets.toml
-

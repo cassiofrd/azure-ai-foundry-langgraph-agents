@@ -167,13 +167,19 @@ def create_app(
         )
         specialist_outputs = result.get("specialist_outputs") or {}
         participants = list(specialist_outputs.keys())
+        structured_evidence = (
+            list(getattr(execution, "evidence", []) or [])
+            if execution is not None
+            else []
+        )
+        parsed_evidence = list(extract_evidence(answer)) if not structured_evidence else []
         evidence = [
             EvidenceResponse(
                 title=item.title,
                 source=item.source,
                 entity_id=item.entity_id,
             )
-            for item in extract_evidence(answer)
+            for item in (structured_evidence or parsed_evidence)
         ]
 
         return CopilotResponse(

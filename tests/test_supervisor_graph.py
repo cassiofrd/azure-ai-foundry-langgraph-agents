@@ -123,9 +123,13 @@ def test_inventory_route_exposes_only_inventory_tool(settings, monkeypatch):
     assert result["intent"] == "inventory"
     assert result["agent"] == "inventory"
     assert result["answer"] == "Política encontrada."
-    assert [tool["name"] for tool in client.responses.calls[1]["tools"]] == [
-        "search_inventory_documents"
-    ]
+    inventory_tools = {
+        tool["name"] for tool in client.responses.calls[1]["tools"]
+    }
+    assert "search_inventory_documents" in inventory_tools
+    assert "search_procedure_documents" in inventory_tools
+    assert "get_open_production_orders" in inventory_tools
+    assert "get_demand_forecast" in inventory_tools
     assert client.responses.calls[1]["instructions"] == "inventory prompt"
     assert client.responses.calls[1]["tool_choice"] == "required"
     assert client.responses.calls[2]["instructions"] == "inventory prompt"
@@ -262,15 +266,19 @@ def test_inventory_supplier_route_runs_both_specialists_and_synthesizes(
         "inventory": "Inventory answer with Evidence.",
         "supplier": "Supplier answer with Evidence.",
     }
-    assert "exact entity_id M10" in result["specialist_queries"]["inventory"]
-    assert "exact entity_id M10" in result["specialist_queries"]["supplier"]
+    assert "M10" in result["specialist_queries"]["inventory"]
+    assert "M10" in result["specialist_queries"]["supplier"]
     assert "target stock level" in client.responses.calls[1]["input"]
     assert "contractual lead time" in client.responses.calls[3]["input"]
     assert client.responses.calls[1]["input"] != result["user_input"]
     assert client.responses.calls[3]["input"] != result["user_input"]
-    assert [tool["name"] for tool in client.responses.calls[1]["tools"]] == [
-        "search_inventory_documents"
-    ]
+    inventory_tools = {
+        tool["name"] for tool in client.responses.calls[1]["tools"]
+    }
+    assert "search_inventory_documents" in inventory_tools
+    assert "search_procedure_documents" in inventory_tools
+    assert "get_open_production_orders" in inventory_tools
+    assert "get_demand_forecast" in inventory_tools
     assert [tool["name"] for tool in client.responses.calls[3]["tools"]] == [
         "search_supplier_documents"
     ]
@@ -390,7 +398,7 @@ def test_three_specialist_route_runs_all_agents_and_synthesizes(
         "supplier",
         "logistics",
     }
-    assert "M10" not in result["specialist_queries"]["logistics"]
+    assert "M10" in result["specialist_queries"]["logistics"]
     assert result["answer"] == "Plano consolidado em português."
     synthesis_call = client.responses.calls[7]
     assert "Original user request" in synthesis_call["input"]

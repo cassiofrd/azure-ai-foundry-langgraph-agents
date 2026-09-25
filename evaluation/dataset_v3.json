@@ -1,0 +1,265 @@
+[
+  {
+    "case_id": "inventory-policy-m10",
+    "message": "What is the inventory policy for BOLT-M10?",
+    "expected_route": "inventory",
+    "expected_participants": [],
+    "expected_tools": [
+      "search_inventory_documents"
+    ],
+    "expected_entity_ids": [
+      "M10"
+    ],
+    "required_answer_terms": [
+      "900",
+      "300",
+      "200",
+      "600"
+    ]
+  },
+  {
+    "case_id": "current-inventory-m10-bh",
+    "message": "What is the current inventory for BOLT-M10 at PLANT-BH?",
+    "expected_route": "inventory",
+    "expected_participants": [],
+    "expected_tools": [
+      "get_current_inventory"
+    ],
+    "expected_entity_ids": [
+      "M10"
+    ],
+    "required_answer_terms": [
+      "360",
+      "110",
+      "250",
+      "2026-09-08"
+    ]
+  },
+  {
+    "case_id": "open-orders-m10-bh",
+    "message": "What open production orders exist for BOLT-M10 at PLANT-BH?",
+    "expected_route": "inventory",
+    "expected_participants": [],
+    "expected_tools": [
+      "get_open_production_orders"
+    ],
+    "expected_entity_ids": [
+      "M10"
+    ],
+    "required_answer_terms": [
+      "PO-9001",
+      "120",
+      "PO-9002",
+      "90",
+      "210"
+    ]
+  },
+  {
+    "case_id": "demand-forecast-m10-bh",
+    "message": "What is the demand forecast for BOLT-M10 at PLANT-BH for the next three forecast weeks?",
+    "expected_route": "inventory",
+    "expected_participants": [],
+    "expected_tools": [
+      "get_demand_forecast"
+    ],
+    "expected_entity_ids": [
+      "M10"
+    ],
+    "required_answer_terms": [
+      "2026-W37",
+      "180",
+      "2026-W38",
+      "240",
+      "2026-W39",
+      "210",
+      "630"
+    ]
+  },
+  {
+    "case_id": "inventory-projection-m10-bh",
+    "message": "Project inventory for BOLT-M10 at PLANT-BH using committed open orders and the demand forecast.",
+    "expected_route": "inventory",
+    "expected_participants": [],
+    "expected_tools": [
+      "calculate_inventory_projection"
+    ],
+    "expected_entity_ids": [
+      "M10"
+    ],
+    "required_answer_terms": [
+      "250",
+      "40",
+      "-380"
+    ],
+    "forbidden_answer_regex": [
+      "(?i)(?:add|combine|total)[^\\\\n.]{0,80}\\\\b210\\\\b[^\\\\n.]{0,80}\\\\b630\\\\b"
+    ]
+  },
+  {
+    "case_id": "supplier-m10",
+    "message": "Who is the approved supplier for BOLT-M10 and what is the contractual lead time?",
+    "expected_route": "supplier",
+    "expected_participants": [],
+    "expected_tools": [
+      "search_supplier_documents"
+    ],
+    "expected_entity_ids": [
+      "M10"
+    ],
+    "required_answer_terms": [
+      "Contoso",
+      "7"
+    ]
+  },
+  {
+    "case_id": "supplier-accelerated-m10",
+    "message": "Can the approved supplier accelerate BOLT-M10 replenishment, and under what terms?",
+    "expected_route": "supplier",
+    "expected_participants": [],
+    "expected_tools": [
+      "search_supplier_documents"
+    ],
+    "expected_entity_ids": [
+      "M10"
+    ],
+    "required_answer_terms": [
+      "Contoso",
+      "4",
+      "12"
+    ]
+  },
+  {
+    "case_id": "logistics-options",
+    "message": "What transportation options are available for an urgent replenishment?",
+    "expected_route": "logistics",
+    "expected_participants": [],
+    "expected_tools": [
+      "search_logistics_documents"
+    ],
+    "required_answer_terms": [
+      "standard",
+      "expedited",
+      "air"
+    ]
+  },
+  {
+    "case_id": "logistics-approvals",
+    "message": "Which approvals are required for expedited ground and air freight?",
+    "expected_route": "logistics",
+    "expected_participants": [],
+    "expected_tools": [
+      "search_logistics_documents"
+    ],
+    "required_answer_terms": [
+      "Logistics Coordinator",
+      "Supply Chain Manager"
+    ]
+  },
+  {
+    "case_id": "procedure-standard",
+    "message": "What is the standard replenishment procedure for BOLT-M10 at PLANT-BH?",
+    "expected_route": "inventory",
+    "expected_participants": [],
+    "expected_tools": [
+      "search_procedure_documents"
+    ],
+    "required_answer_terms": [
+      "available",
+      "reorder",
+      "safety"
+    ]
+  },
+  {
+    "case_id": "procedure-emergency",
+    "message": "When does the emergency shortage procedure apply for BOLT-M10 at PLANT-BH?",
+    "expected_route": "inventory",
+    "expected_participants": [],
+    "expected_tools": [
+      "search_procedure_documents"
+    ],
+    "required_answer_terms": [
+      "zero"
+    ]
+  },
+  {
+    "case_id": "full-plan-m10-bh",
+    "message": "What is the best replenishment plan for BOLT-M10 at PLANT-BH?",
+    "expected_route": "inventory_supplier_logistics",
+    "expected_participants": [
+      "inventory",
+      "supplier",
+      "logistics"
+    ],
+    "expected_tools": [
+      "calculate_inventory_projection",
+      "search_inventory_documents",
+      "search_procedure_documents",
+      "search_supplier_documents",
+      "search_logistics_documents"
+    ],
+    "forbidden_tools": [
+      "get_current_inventory",
+      "get_open_production_orders",
+      "get_demand_forecast"
+    ],
+    "max_tool_calls": 7,
+    "expected_entity_ids": [
+      "M10"
+    ],
+    "required_answer_terms": [
+      "250",
+      "40",
+      "600",
+      "Contoso"
+    ],
+    "forbidden_answer_regex": [
+      "(?i)250\\\\s+(?:units?\\\\s+)?(?:is|are|was|were)?\\\\s*below\\\\s+(?:the\\\\s+)?safety\\\\s+stock",
+      "(?i)250[^\\\\n.]{0,60}below[^\\\\n.]{0,30}(?:safety stock|200)"
+    ]
+  },
+  {
+    "case_id": "alias-resolution-m10",
+    "message": "What is the reorder point for Bolt M10?",
+    "expected_route": "inventory",
+    "expected_participants": [],
+    "expected_tools": [
+      "search_inventory_documents"
+    ],
+    "expected_entity_ids": [
+      "M10"
+    ],
+    "required_answer_terms": [
+      "300"
+    ]
+  },
+  {
+    "case_id": "missing-entity",
+    "message": "What is the inventory policy for X999?",
+    "expected_route": "inventory",
+    "expected_participants": [],
+    "expected_tools": [
+      "search_inventory_documents"
+    ],
+    "forbidden_answer_terms": [
+      "900 units",
+      "1200 units",
+      "Contoso Industrial"
+    ]
+  },
+  {
+    "case_id": "general-rag",
+    "message": "Briefly explain what RAG is.",
+    "expected_route": "general",
+    "expected_participants": [],
+    "forbidden_tools": [
+      "search_inventory_documents",
+      "search_supplier_documents",
+      "search_logistics_documents",
+      "search_procedure_documents",
+      "calculate_inventory_projection"
+    ],
+    "required_answer_regex": [
+      "(?i)retriev|recuper"
+    ]
+  }
+]

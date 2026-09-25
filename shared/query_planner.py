@@ -55,38 +55,73 @@ def plan_specialist_queries(
 
     entity_id = extract_entity_id(normalized)
     target = (
-        f"the item with exact entity_id {entity_id}"
+        f"the item identified as {entity_id}"
         if entity_id
         else "the item mentioned in the original request"
     )
 
+    original_request_context = f"Original request: {normalized} "
+
     inventory = None
     if "inventory" in specialists:
         inventory = (
-            f"Retrieve the inventory policy for {target}. "
-            "Focus on target stock level, reorder point, preferred replenishment "
-            "quantity, shortage rules, and any planning instructions. "
-            "Use only the inventory search tool and require an exact entity match."
+            original_request_context
+            + f"Retrieve the current inventory snapshot and inventory policy for {target}, "
+            "preserving any location identifier from the original request. "
+            "Focus on current on-hand, reserved, and available inventory; snapshot date; "
+            "target stock level; reorder point; safety stock; preferred replenishment "
+            "quantity; shortage rules; and planning instructions. Also retrieve demand "
+            "evidence relevant to replenishment planning, including open production "
+            "orders, demand forecasts, and recent historical consumption for the item "
+            "and location when available. Also retrieve the applicable standard "
+            "replenishment and emergency-shortage procedures, including escalation rules, "
+            "approval requirements, and decision criteria. For replenishment planning, "
+            "shortage-risk analysis, or projected inventory, use calculate_inventory_projection "
+            "to obtain deterministic inventory projections instead of asking the LLM to perform "
+            "inventory arithmetic. The projection tool already retrieves the exact current "
+            "inventory, complete open production orders, and exact demand forecast; do not call "
+            "get_current_inventory, get_open_production_orders, or get_demand_forecast again "
+            "unless the projection output is missing required data or the original request "
+            "explicitly asks for an underlying dataset. Treat the tool's committed-open-orders "
+            "and forecast results as separate scenarios unless enterprise evidence explicitly "
+            "establishes that they can be combined without double counting. Use the inventory search tool "
+            "for inventory policy and other relevance-oriented inventory knowledge. Use "
+            "search_procedure_documents once with a sufficiently broad query for the applicable "
+            "standard and emergency procedural guidance; avoid duplicate procedure searches for "
+            "the same planning request. Use the demand search tool for historical consumption "
+            "and other relevance-oriented "
+            "demand evidence. "
+            "Preserve the product identifier and location from the original request in all "
+            "tool queries "
+            "so Retrieval V2 can resolve aliases and apply metadata filters. Do not "
+            "require a literal exact entity-id match."
         )
 
     supplier = None
     if "supplier" in specialists:
         supplier = (
-            f"Retrieve the approved supplier information for {target}. "
-            "Focus on supplier name, contractual lead time, order capacity, and "
-            "other facts relevant to whether replenishment demand can be served. "
-            "Use only the supplier search tool and require an exact entity match."
+            original_request_context
+            + f"Retrieve the approved supplier information for {target}. "
+            "Focus on supplier name, approval status, contractual lead time, minimum "
+            "and maximum order quantities, accelerated-processing options, capacity "
+            "constraints, and other facts relevant to whether replenishment demand can "
+            "be served. Use only the supplier search tool. Preserve the product "
+            "identifier from the original request so Retrieval V2 can resolve aliases "
+            "and apply metadata filters. Do not require a literal exact entity-id match."
         )
 
     logistics = None
     if "logistics" in specialists:
         logistics = (
-            "Retrieve the transportation policies relevant to the original "
-            "replenishment request. Focus on available transportation modes, "
-            "transit times after supplier dispatch, urgency criteria, approvals, "
-            "cost trade-offs, and production-shortage constraints. Use only the "
-            "logistics search tool. Do not search by the product entity_id because "
-            "logistics documents are organized by transportation mode."
+            original_request_context
+            + f"Retrieve the transportation policies, freight information, and carrier "
+            f"restrictions relevant to {target} and the destination or location in the "
+            "original request. Focus on available transportation modes, transit times "
+            "after supplier dispatch, urgency criteria, approvals, cost trade-offs, "
+            "carrier restrictions, and production-shortage constraints. Use only the "
+            "logistics search tool. Preserve the product identifier and location from "
+            "the original request when useful; Retrieval V2 can combine entity-specific "
+            "documents with global logistics documents."
         )
 
     return SpecialistQueries(
@@ -95,7 +130,6 @@ def plan_specialist_queries(
         logistics=logistics,
         entity_id=entity_id,
     )
-
 
 def plan_inventory_supplier_queries(user_input: str) -> SpecialistQueries:
     """Backward-compatible planner for the original two-specialist route."""

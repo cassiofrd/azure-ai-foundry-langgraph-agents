@@ -1,15 +1,11 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any, Protocol
 
-from evaluation.models import (
-    CaseResult,
-    CheckResult,
-    EvaluationCase,
-    EvaluationReport,
-)
+from evaluation.models import CaseResult, CheckResult, EvaluationCase, EvaluationReport
 
 
 class CopilotClientProtocol(Protocol):
@@ -24,10 +20,7 @@ def load_cases(path: str | Path) -> list[EvaluationCase]:
     return [EvaluationCase.from_dict(item) for item in payload]
 
 
-def evaluate_case(
-    case: EvaluationCase,
-    response: dict[str, Any],
-) -> CaseResult:
+def evaluate_case(case: EvaluationCase, response: dict[str, Any]) -> CaseResult:
     route = str(response.get("route", ""))
     participants = tuple(str(item) for item in response.get("participants", []))
     answer = str(response.get("answer", ""))
@@ -38,63 +31,89 @@ def evaluate_case(
         for item in evidence
         if isinstance(item, dict)
     }
+
     execution = response.get("execution", {}) or {}
     metrics = execution.get("metrics", {}) or {}
     tools = execution.get("tools", []) or []
-    tool_names = {
+    tool_names_list = [
         str(item.get("tool_name", ""))
         for item in tools
         if isinstance(item, dict)
-    }
+    ]
+    tool_names = set(tool_names_list)
     duration_ms = _optional_float(execution.get("duration_ms"))
     total_tokens = int(metrics.get("total_tokens", 0) or 0)
+    tool_call_count = len(tool_names_list)
 
     checks = [
+        CheckResult("route", route == case.expected_route, case.expected_route, route),
         CheckResult(
-            name="route",
-            passed=route == case.expected_route,
-            expected=case.expected_route,
-            actual=route,
+            "participants",
+            set(participants) == set(case.expected_participants),
+            sorted(case.expected_participants),
+            sorted(participants),
         ),
         CheckResult(
-            name="participants",
-            passed=set(participants) == set(case.expected_participants),
-            expected=sorted(case.expected_participants),
-            actual=sorted(participants),
+            "required_tools",
+            set(case.expected_tools).issubset(tool_names),
+            sorted(case.expected_tools),
+            sorted(tool_names),
         ),
         CheckResult(
-            name="tools",
-            passed=set(case.expected_tools).issubset(tool_names),
-            expected=sorted(case.expected_tools),
-            actual=sorted(tool_names),
+            "forbidden_tools",
+            set(case.forbidden_tools).isdisjoint(tool_names),
+            sorted(case.forbidden_tools),
+            sorted(tool_names),
         ),
         CheckResult(
-            name="evidence_entity_ids",
-            passed={item.casefold() for item in case.expected_entity_ids}.issubset(entity_ids),
-            expected=sorted(case.expected_entity_ids),
-            actual=sorted(entity_ids),
+            "evidence_entity_ids",
+            {item.casefold() for item in case.expected_entity_ids}.issubset(entity_ids),
+            sorted(case.expected_entity_ids),
+            sorted(entity_ids),
         ),
         CheckResult(
-            name="required_answer_terms",
-            passed=all(term.casefold() in answer_folded for term in case.required_answer_terms),
-            expected=list(case.required_answer_terms),
-            actual=answer,
+            "required_answer_terms",
+            all(term.casefold() in answer_folded for term in case.required_answer_terms),
+            list(case.required_answer_terms),
+            answer,
         ),
         CheckResult(
-            name="forbidden_answer_terms",
-            passed=all(term.casefold() not in answer_folded for term in case.forbidden_answer_terms),
-            expected=list(case.forbidden_answer_terms),
-            actual=answer,
+            "forbidden_answer_terms",
+            all(term.casefold() not in answer_folded for term in case.forbidden_answer_terms),
+            list(case.forbidden_answer_terms),
+            answer,
+        ),
+        CheckResult(
+            "required_answer_regex",
+            all(re.search(pattern, answer) is not None for pattern in case.required_answer_regex),
+            list(case.required_answer_regex),
+            answer,
+        ),
+        CheckResult(
+            "forbidden_answer_regex",
+            all(re.search(pattern, answer) is None for pattern in case.forbidden_answer_regex),
+            list(case.forbidden_answer_regex),
+            answer,
         ),
     ]
+
+    if case.max_tool_calls is not None:
+        checks.append(
+            CheckResult(
+                "max_tool_calls",
+                tool_call_count <= case.max_tool_calls,
+                case.max_tool_calls,
+                tool_call_count,
+            )
+        )
 
     if case.max_duration_ms is not None:
         checks.append(
             CheckResult(
-                name="max_duration_ms",
-                passed=duration_ms is not None and duration_ms <= case.max_duration_ms,
-                expected=case.max_duration_ms,
-                actual=duration_ms,
+                "max_duration_ms",
+                duration_ms is not None and duration_ms <= case.max_duration_ms,
+                case.max_duration_ms,
+                duration_ms,
             )
         )
 
@@ -106,6 +125,7 @@ def evaluate_case(
         participants=participants,
         duration_ms=duration_ms,
         total_tokens=total_tokens,
+        tool_calls=tool_call_count,
     )
 
 
@@ -113,7 +133,7 @@ def run_evaluation(
     *,
     client: CopilotClientProtocol,
     cases: list[EvaluationCase],
-    session_prefix: str = "evaluation",
+    session_prefix: str = "evaluation-v2",
 ) -> EvaluationReport:
     report = EvaluationReport()
     for index, case in enumerate(cases, start=1):
@@ -131,6 +151,7 @@ def run_evaluation(
                     participants=(),
                     duration_ms=None,
                     total_tokens=0,
+                    tool_calls=0,
                     error=f"{type(exc).__name__}: {exc}",
                 )
             )
